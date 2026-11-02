@@ -1,0 +1,6 @@
+{
+  "name": "O-Finance — Personal Financial Operating System",
+  "description": "Local-first Personal Financial Operating System integrating multi-institution bank & brokerage accounts, Beancount double-entry accounting, portfolio management, quant research, and Pydantic AI agent governance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

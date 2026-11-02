@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   { path: '/portfolio', label: 'Portfolio', sub: 'Holdings & Risk', icon: PieChart },
   { path: '/market-intelligence', label: 'Market Intelligence', sub: 'Watchlist & Reports', icon: Globe },
   { path: '/quant-lab', label: 'Quant Lab', sub: 'Strategies & Backtest', icon: FlaskConical },
-  { path: '/agent-center', label: 'Agent Center', sub: 'Pydantic AI Governance', icon: Cpu },
+  { path: '/agent-center', label: 'AI Assistant Center', sub: 'OFinanceAssistant · 6 Modes', icon: Cpu },
   { path: '/approvals', label: 'Approval Inbox', sub: 'Human-in-the-Loop', icon: CheckSquare },
   { path: '/audit', label: 'Audit & Security', sub: 'Append-Only Logs', icon: ShieldCheck },
   { path: '/settings', label: 'Settings', sub: 'System Configuration', icon: Settings },
@@ -131,7 +131,7 @@ export const WorkstationShell: React.FC = () => {
                 O-Finance
               </span>
               <span className="hidden xl:inline-block ml-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
-                v0.2 · Local Workstation
+                v0.3 · Local Workstation
               </span>
             </div>
           </button>
@@ -273,7 +273,7 @@ export const WorkstationShell: React.FC = () => {
           <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
             <span>Backend: Mock</span>
             <span aria-hidden="true">·</span>
-            <span>Agents: Offline (Sim)</span>
+            <span>OFinanceAssistant: Standby (Sim)</span>
           </div>
 
           {/* Base Currency Selector */}
@@ -345,7 +345,7 @@ export const WorkstationShell: React.FC = () => {
                       >
                         <div className="font-medium text-slate-900 dark:text-slate-100">{task.title}</div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {task.agentName} · Risk: {task.riskLevel}
+                          {task.assistantName} ({task.taskMode}) · Risk: {task.riskLevel}
                         </div>
                       </div>
                     ))}

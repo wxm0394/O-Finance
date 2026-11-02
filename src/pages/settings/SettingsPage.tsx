@@ -27,7 +27,7 @@ export const SettingsPage: React.FC = () => {
             System Settings & Local Architecture Configuration (DEMO)
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure display currency, theme, local FastAPI/Fava endpoints, AI Agent execution budgets, and data retention policies.
+            Configure display currency, theme, local FastAPI/Fava endpoints, OFinanceAssistant execution budgets, and data retention policies.
           </p>
         </div>
 
@@ -194,13 +194,13 @@ export const SettingsPage: React.FC = () => {
         <div className="lg:col-span-6 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-4">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-1.5">
             <Shield className="w-4 h-4 text-blue-500" />
-            <span>3. AI Model Providers, Agent Budgets & Automation Limits</span>
+            <span>3. OFinanceAssistant Global Budget & Automation Limits</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] text-slate-500 mb-1">
-                Global Daily Agent Budget Cap (USD)
+                Global Daily Assistant Budget Cap (USD)
               </label>
               <input
                 type="number"
@@ -215,7 +215,7 @@ export const SettingsPage: React.FC = () => {
 
             <div>
               <label className="block text-[11px] text-slate-500 mb-1">
-                Max Reasoning Steps per Orchestrator Run
+                Max Sequential Tool Steps per Assistant Run
               </label>
               <input
                 type="number"

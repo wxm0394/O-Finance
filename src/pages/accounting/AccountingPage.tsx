@@ -254,7 +254,7 @@ export const AccountingPage: React.FC = () => {
               Automated Double-Entry Bookkeeping Pipeline
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Deterministic normalization and Accounting Agent classification with human-in-the-loop approval before ledger posting
+              Deterministic normalization and OFinanceAssistant (Accounting Mode) classification with human-in-the-loop approval before ledger posting
             </p>
           </div>
           <span className="text-xs font-mono text-amber-600 dark:text-amber-400">

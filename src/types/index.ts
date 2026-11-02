@@ -216,80 +216,97 @@ export interface BacktestExperiment {
   monthlyReturns: { month: string; returnPct: number }[];
 }
 
-export type AgentRoleId =
-  | 'orchestrator'
-  | 'accounting'
-  | 'investment'
-  | 'research'
-  | 'quant'
-  | 'auditor'
-  | 'risk';
+/**
+ * O-Finance v0.3 Single Assistant Architecture (`OFinanceAssistant`)
+ * Task modes are configuration profiles rather than separate agents.
+ */
+export type AssistantTaskMode =
+  | 'Accounting'
+  | 'Portfolio Analysis'
+  | 'Research'
+  | 'Quantitative Research'
+  | 'Audit'
+  | 'Risk Analysis';
+
+export interface TaskModeProfile {
+  mode: AssistantTaskMode;
+  tagline: string;
+  instructions: string;
+  accessibleTools: string[];
+  expectedOutputSchema: string;
+  permittedDataScope: string;
+  permissionRequirements: string[];
+  approvalPolicy: string;
+}
+
+export interface UnifiedModelConfig {
+  provider: 'Gemini' | 'Claude' | 'OpenAI-Compatible' | 'Local Ollama';
+  model: string;
+  base_url: string;
+  api_key_configured: boolean;
+  model_status: 'Simulated Configured' | 'Local Standby' | 'Backend Vault Only';
+  request_timeout: number;
+  max_output_tokens: number;
+  daily_budget_usd: number;
+  per_task_budget_usd: number;
+}
+
+export interface ModelProviderPreset {
+  id: string;
+  provider: UnifiedModelConfig['provider'];
+  model: string;
+  base_url: string;
+  contextWindow: string;
+  latencyEstimate: string;
+  model_status: UnifiedModelConfig['model_status'];
+}
 
 export interface AgentToolPermission {
   id: string;
   name: string;
   description: string;
-  category: 'Read-Only' | 'Computation' | 'Drafting' | 'Governance' | 'Restricted (Prohibited)';
+  category:
+    | 'Read-Only'
+    | 'Deterministic Computation'
+    | 'Drafting'
+    | 'Governance'
+    | 'Restricted (Prohibited)';
   enabled: boolean;
   lockedReadOnly?: boolean;
-}
-
-export interface AIModelConfig {
-  id: string;
-  provider: 'Local Ollama' | 'Gemini' | 'Claude' | 'OpenAI-Compatible';
-  modelName: string;
-  endpoint: string;
-  contextWindow: string;
-  status: 'Simulated Configured' | 'Local Standby' | 'Unconfigured';
-  latencyEstimate: string;
-}
-
-export interface AgentDefinition {
-  id: AgentRoleId;
-  name: string;
-  role: string;
-  description: string;
-  responsibilities: string[];
-  runtimeStatus: 'Standby (Mock Runtime)' | 'Simulated Active' | 'Offline';
-  assignedModelId: string;
-  tools: string[];
-  permissions: string[];
-  memoryStatus: string;
-  lastExecution: string;
-  tokensUsedToday: number;
-  executionBudgetUSD: number;
-  budgetUsedUSD: number;
-  errorCount: number;
 }
 
 export interface AgentExecutionLog {
   id: string;
   timestamp: string;
-  agentId: AgentRoleId;
-  agentName: string;
+  assistantName: 'OFinanceAssistant';
+  taskMode: AssistantTaskMode;
   trigger: 'User Prompt' | 'Scheduled Audit' | 'Sync Hook' | 'Manual Trigger';
   taskSummary: string;
   toolsInvoked: string[];
   durationMs: number;
   tokensUsed: number;
+  estimatedCostUSD: number;
   status: 'Success (Simulated)' | 'Approval Requested' | 'Warning Flagged';
   outputPreview: string;
 }
 
+export interface AssistantToolTimelineStep {
+  stepNumber: number;
+  toolName: string;
+  category: 'Read-Only' | 'Deterministic Computation' | 'Drafting' | 'Governance';
+  callSignature: string;
+  status: 'Completed (Simulated)';
+  deterministicFinding: string;
+  durationMs: number;
+}
+
 export interface PlaygroundMessage {
   id: string;
-  role: 'user' | 'orchestrator';
+  role: 'user' | 'assistant';
   timestamp: string;
+  taskMode?: AssistantTaskMode;
   content: string;
-  promptType?: string;
-  delegatedAgents?: {
-    agentId: AgentRoleId;
-    agentName: string;
-    stepTitle: string;
-    toolCalled: string;
-    status: 'Completed (Simulated)';
-    finding: string;
-  }[];
+  toolTimeline?: AssistantToolTimelineStep[];
   structuredMetrics?: { label: string; value: string; delta?: string }[];
 }
 
@@ -297,9 +314,16 @@ export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface ApprovalTask {
   id: string;
-  source: 'Transaction Normalization' | 'Beancount Journal Draft' | 'Anomaly Detection' | 'Reconciliation Check' | 'Duplicate Guard' | 'Agent Risk Alert' | 'Research Task';
-  agentId: AgentRoleId;
-  agentName: string;
+  source:
+    | 'Transaction Normalization'
+    | 'Beancount Journal Draft'
+    | 'Anomaly Detection'
+    | 'Reconciliation Check'
+    | 'Duplicate Guard'
+    | 'Assistant Risk Alert'
+    | 'Research Task';
+  assistantName: 'OFinanceAssistant';
+  taskMode: AssistantTaskMode;
   title: string;
   description: string;
   amount?: number;

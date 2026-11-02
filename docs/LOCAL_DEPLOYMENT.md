@@ -1,58 +1,63 @@
-# O-Finance — Local Kali Linux Deployment Guide (v0.2)
+# O-Finance Local Deployment Guide (Kali Linux / Debian Workstation · v0.3)
 
-> This guide explains how to export the O-Finance frontend from AI Studio / GitHub and deploy the complete local-first stack on **Kali Linux** (or Debian/Ubuntu workstations).
-
----
-
-## 1. Local Workstation Topology
-
-All services bind exclusively to `127.0.0.1` (loopback) by default so no financial data is exposed to external networks:
-
-| Component | Technology | Default Local Binding | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Desktop / Web UI** | React 19 + TypeScript + Vite / Tauri | `http://127.0.0.1:3000` | Interactive Financial Workstation UI |
-| **Core API & Agent Host** | Python 3.12 + FastAPI + Pydantic AI | `http://127.0.0.1:8000` | REST API, Connector Vault, Agent Runtime |
-| **Double-Entry Ledger UI** | Beancount v3 + Fava | `http://127.0.0.1:5000` | Authoritative Double-Entry Accounting & Reports |
-| **Transactional DB** | PostgreSQL 16 | `127.0.0.1:5432` | Normalized transactions, audit logs, approval tasks |
-| **Quant Analytical Store** | DuckDB + Apache Parquet | `~/o-finance/quant/*.parquet` | Vectorized OHLCV market data & backtest registry |
-| **Local LLM Server** | Ollama / vLLM | `http://127.0.0.1:11434` | Local privacy-preserving inference (`qwen2.5-coder:32b`) |
-| **External Research Feed** | `daily_stock_analysis` (Optional) | `http://127.0.0.1:8090` | Read-only external stock report ingestion |
+This guide explains how to export O-Finance from the cloud Demo prototype to a local Kali Linux workstation and connect the Python FastAPI backend, Beancount/Fava ledger, DuckDB quant store, and the single `OFinanceAssistant` Pydantic AI runtime.
 
 ---
 
-## 2. Step-by-Step Setup on Kali Linux
+## 1. Local Directory Layout
 
-### 2.1 Clone & Run Frontend in Demo Mode
+```text
+~/o-finance/
+├── frontend/                  # This React + TypeScript + Vite workstation UI
+├── backend/                   # Python 3.12 + FastAPI + Pydantic AI service
+│   ├── app/
+│   │   ├── assistant/         # Single OFinanceAssistant & 6 Task Mode profiles
+│   │   ├── routers/           # /api/v1/assistant/*, /accounts, /ledger, /quant
+│   │   ├── services/          # Deterministic financial & DuckDB engines
+│   │   └── main.py
+│   └── pyproject.toml
+├── ledger/
+│   └── main.beancount         # Authoritative plain-text double-entry ledger
+└── data/
+    ├── ofinance.db            # PostgreSQL / SQLite transactional & audit store
+    └── market_ohlcv.parquet   # DuckDB / Parquet quantitative research dataset
+```
+
+---
+
+## 2. Backend Environment Variables (`backend/.env`)
+
+Store the single cloud LLM API key exclusively in the backend environment (never in frontend `.env` or `VITE_` variables):
+
+```ini
+# Single AI Provider Configuration for OFinanceAssistant
+OFINANCE_AI_PROVIDER="Gemini"
+OFINANCE_AI_MODEL="gemini-2.5-pro"
+OFINANCE_AI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
+OFINANCE_AI_API_KEY="YOUR_BACKEND_ONLY_API_KEY"
+OFINANCE_AI_REQUEST_TIMEOUT=45
+OFINANCE_AI_MAX_OUTPUT_TOKENS=4096
+OFINANCE_AI_DAILY_BUDGET_USD=25.00
+OFINANCE_AI_PER_TASK_BUDGET_USD=0.75
+
+# Local Services
+BEANCOUNT_FILE_PATH="/home/operator/o-finance/ledger/main.beancount"
+FAVA_BASE_URL="http://127.0.0.1:5000"
+DAILY_ANALYSIS_CONNECTOR_URL="http://127.0.0.1:8090/api/v1/reports"
+```
+
+---
+
+## 3. Running the Local Stack on Kali Linux
+
 ```bash
-git clone <your-private-repo-url> o-finance
-cd o-finance
+# 1. Start Beancount Fava web reporting server (Port 5000)
+fava ~/o-finance/ledger/main.beancount --port 5000
+
+# 2. Start Python FastAPI + Pydantic AI backend (Port 8000)
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+# 3. Start O-Finance Frontend Workstation (Port 3000)
 npm install
 npm run dev
 ```
-Verify unit tests and production bundle:
-```bash
-npx --yes tsx --test src/utils/finance.test.ts
-npm run lint
-npm run build
-```
-
-### 2.2 Initialize Beancount & Fava Local Service
-```bash
-sudo apt update && sudo apt install -y python3-venv python3-pip postgresql
-mkdir -p ~/o-finance/ledger ~/o-finance/quant
-python3 -m venv ~/o-finance/.venv
-source ~/o-finance/.venv/bin/activate
-pip install beancount fava fastapi uvicorn pydantic-ai duckdb polars psycopg[binary]
-
-# Start Fava on loopback port 5000
-fava ~/o-finance/ledger/main.beancount --host 127.0.0.1 --port 5000
-```
-
-### 2.3 Connect Frontend to Local Python FastAPI Backend
-Create `.env.local` in the frontend root:
-```env
-VITE_DEMO_MODE="false"
-VITE_API_BASE_URL="http://127.0.0.1:8000"
-VITE_FAVA_URL="http://127.0.0.1:5000"
-```
-> **Security Rule**: Never place Interactive Brokers Flex tokens, Charles Schwab OAuth secrets, Plaid keys, or LLM API keys inside `.env.local` or any `VITE_*` variable. All credentials belong exclusively in the Python backend's encrypted environment or OS keyring.

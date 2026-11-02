@@ -15,23 +15,25 @@ import {
   INITIAL_BACKTESTS,
 } from '../mocks/reports';
 import {
-  INITIAL_AGENTS,
-  INITIAL_AI_MODELS,
+  OFINANCE_ASSISTANT_STATUS,
+  INITIAL_UNIFIED_MODEL_CONFIG,
+  TASK_MODE_PROFILES,
   INITIAL_TOOL_PERMISSIONS,
   INITIAL_AGENT_LOGS,
 } from '../mocks/agents';
 import { INITIAL_APPROVAL_TASKS, INITIAL_AUDIT_LOGS } from '../mocks/audit';
 import { runDeterministicBacktest } from '../utils/finance';
+import { AssistantTaskMode } from '../types';
 
 /**
- * 10 Modular Domain Services as specified in Section 2.3:
+ * 10 Modular Domain Services (O-Finance v0.3 Architecture):
  * 1. AccountService
  * 2. TransactionService
  * 3. LedgerService
  * 4. PortfolioService
  * 5. MarketDataService
  * 6. ResearchService
- * 7. AgentService
+ * 7. AssistantService (Single Assistant `/api/v1/assistant/*` contract)
  * 8. ApprovalService
  * 9. AuditService
  * 10. SyncService
@@ -86,11 +88,41 @@ export const ResearchService = {
     })),
 };
 
-export const AgentService = {
-  getAgents: () => ApiClient.request('/api/v1/agents', () => INITIAL_AGENTS),
-  getModels: () => ApiClient.request('/api/v1/agents/models', () => INITIAL_AI_MODELS),
-  getPermissions: () => ApiClient.request('/api/v1/agents/permissions', () => INITIAL_TOOL_PERMISSIONS),
-  getExecutionLogs: () => ApiClient.request('/api/v1/agents/logs', () => INITIAL_AGENT_LOGS),
+export const AssistantService = {
+  getStatus: () =>
+    ApiClient.request('/api/v1/assistant/status', () => ({
+      ...OFINANCE_ASSISTANT_STATUS,
+      supportedTaskModes: TASK_MODE_PROFILES.map((p) => p.mode),
+    })),
+  getConfig: () => ApiClient.request('/api/v1/assistant/config', () => INITIAL_UNIFIED_MODEL_CONFIG),
+  runTask: (payload: {
+    task_mode: AssistantTaskMode;
+    user_input: string;
+    permitted_data_scope: string;
+    output_format: string;
+    approval_policy: string;
+  }) =>
+    ApiClient.request('/api/v1/assistant/run', () => ({
+      task_id: `TASK-${Date.now()}`,
+      assistant: 'OFinanceAssistant' as const,
+      task_mode: payload.task_mode,
+      status: 'Success (Simulated)',
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+    })),
+  getTasks: () => ApiClient.request('/api/v1/assistant/tasks', () => INITIAL_AGENT_LOGS),
+  getTaskById: (taskId: string) =>
+    ApiClient.request(`/api/v1/assistant/tasks/${taskId}`, () =>
+      INITIAL_AGENT_LOGS.find((t) => t.id === taskId) || INITIAL_AGENT_LOGS[0]
+    ),
+  getTools: () => ApiClient.request('/api/v1/assistant/tools', () => INITIAL_TOOL_PERMISSIONS),
+  getUsage: () =>
+    ApiClient.request('/api/v1/assistant/usage', () => ({
+      assistant: 'OFinanceAssistant' as const,
+      tokensUsedToday: OFINANCE_ASSISTANT_STATUS.tokensUsedToday,
+      budgetUsedTodayUSD: OFINANCE_ASSISTANT_STATUS.budgetUsedTodayUSD,
+      dailyBudgetUSD: INITIAL_UNIFIED_MODEL_CONFIG.daily_budget_usd,
+      perTaskBudgetUSD: INITIAL_UNIFIED_MODEL_CONFIG.per_task_budget_usd,
+    })),
 };
 
 export const ApprovalService = {

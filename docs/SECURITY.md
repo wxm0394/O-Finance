@@ -1,14 +1,14 @@
-# O-Finance Security & Governance Specification
+# O-Finance Security, Credential Isolation & Governance Policy (v0.3)
 
-## 1. Ten Core Security Principles
+## 1. Ten Constitutional Security Invariants
 
-1. **Read-Only Financial Connectors by Default**: Interactive Brokers Flex Web Service, Charles Schwab Trader API, Plaid Investments, and GoCardless Open Banking AIS are configured strictly with read-only scopes.
-2. **Server-Side / Local Vault Credential Storage**: Banking credentials, OAuth refresh tokens, and API secrets are stored exclusively in the local OS keyring or encrypted backend vault—never in browser `localStorage` or `VITE_` frontend variables.
-3. **Zero Frontend Secret Exposure**: The React UI only receives normalized financial records and non-sensitive configuration metadata.
-4. **LLM Credential Isolation**: Pydantic AI agents never receive raw financial credentials or session tokens in their system prompts or context windows.
-5. **Non-Bypassable Tool Permission Guard**: Every tool invocation by an Agent is intercepted by the deterministic permission matrix (`Read-Only`, `Computation`, `Drafting`, `Governance`).
-6. **Immutable Raw Financial Data**: Raw bank and brokerage payloads imported during synchronization are stored in an append-only table and can never be overwritten or deleted by AI agents.
-7. **Audited Double-Entry Ledger Changes**: Every Beancount journal modification records a SHA-256 verification hash, timestamp, and actor in the Audit Log.
-8. **Human-in-the-Loop Approval Gate**: Any transaction classification with confidence `< 0.85` or high-severity concentration warning is routed to the Approval Inbox for human sign-off.
-9. **Prohibited Execution Capabilities**: Automated bank wires, withdrawals, live brokerage order placement, and raw ledger deletion are permanently disabled at the architecture level.
-10. **Strict Demo vs Production Isolation**: When `VITE_DEMO_MODE=true`, the application operates 100% on synthetic in-memory data with prominent `DEMO MODE · SIMULATED FINANCIAL DATA` banners on every screen.
+1. **Read-Only Financial Connectors by Default**: Bank and brokerage integrations (IBKR Flex, Schwab Trader, Plaid, TrueLayer, PSD2 AIS) are restricted to read-only scopes.
+2. **Single Backend AI Credential (`OFINANCE_AI_API_KEY`)**: All cloud LLM tasks across `OFinanceAssistant` share a single API credential stored in the Python backend environment or OS credential store (`libsecret` / Kali Linux keyring).
+3. **Zero Frontend Secret Exposure**: API keys, brokerage tokens, and bank credentials must never be stored in React state, `localStorage`, `sessionStorage`, or `VITE_*` environment variables.
+4. **LLM Credential Isolation**: `OFinanceAssistant` never receives raw banking credentials, OAuth refresh tokens, or API keys in its prompt context or tool responses.
+5. **Non-Bypassable Tool Permission Matrix**: Every tool call invoked by `OFinanceAssistant` is validated against the active Task Mode's allowed toolset and the global Tool Permission Matrix.
+6. **Immutable Raw Financial Feed**: Raw institution statements and transaction payloads are stored append-only; `OFinanceAssistant` can only propose normalized mappings or unposted Beancount drafts.
+7. **Human-in-the-Loop Ledger Gate**: Any Beancount journal draft with classification `confidence < 0.85` or risk policy breach is held in the **Approval Inbox** until explicitly approved by the human operator.
+8. **Deterministic Calculation Boundary**: All currency conversions, trial balances, portfolio weights, and backtest metrics are computed by deterministic code—never by LLM token prediction.
+9. **Cryptographic Append-Only Audit Trail**: Every assistant run, tool invocation, approval decision, and connector sync appends a SHA-256 hashed entry to the audit log.
+10. **Strict Demo / Production Isolation**: When `VITE_DEMO_MODE=true`, all data is synthetic (`DEMO MODE · SIMULATED FINANCIAL DATA`) and zero external network calls are made to financial institutions.

@@ -1,243 +1,488 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useOFinance } from '../../app/providers/OFinanceContext';
-import { AgentRoleId } from '../../types';
-import { Cpu, Send, Shield, Lock, Terminal, CheckCircle2 } from 'lucide-react';
+import { AssistantTaskMode } from '../../types';
+import { GUARDRAIL_INTERCEPTION_LOGS } from '../../mocks/agents';
+import {
+  Cpu,
+  Send,
+  ShieldAlert,
+  Lock,
+  Terminal,
+  Activity,
+  Sliders,
+  CheckCircle2,
+  ArrowRight,
+  Layers,
+  DollarSign,
+  KeyRound,
+  AlertOctagon,
+} from 'lucide-react';
 
-const PRESET_PROMPTS = [
-  '分析我所有券商账户的持仓集中度。',
-  '解释最近一个月的现金流变化。',
-  '检查我的账户是否存在未匹配交易。',
-  '比较当前投资组合与上个月的资产配置。',
-  '分析最近的投资组合回撤。',
+const PRESET_PROMPTS: { label: string; mode: AssistantTaskMode; prompt: string }[] = [
+  {
+    label: '1. Analyze Monthly Cash Flow (Accounting Mode)',
+    mode: 'Accounting',
+    prompt: 'Analyze my October cash flow, savings rate, and verify internal transfer exclusions.',
+  },
+  {
+    label: '2. Audit Unmatched Transactions & Trial Balance (Audit Mode)',
+    mode: 'Audit',
+    prompt: 'Check all 32 transactions for unmatched items, duplicate fees, and verify Beancount trial balance.',
+  },
+  {
+    label: '3. Evaluate Concentration & Drawdown (Risk Analysis Mode)',
+    mode: 'Risk Analysis',
+    prompt: 'Evaluate single-stock concentration risk, sector limits, and 12-month maximum drawdown.',
+  },
+  {
+    label: '4. Compare Allocation vs Last Month (Portfolio Analysis Mode)',
+    mode: 'Portfolio Analysis',
+    prompt: 'Compare my current multi-brokerage asset allocation and FX exposure against last month.',
+  },
+  {
+    label: '5. Run 50/200 Dual EMA Backtest Audit (Quant Research Mode)',
+    mode: 'Quantitative Research',
+    prompt: 'Summarize the 50/200 Dual EMA DuckDB backtest on SPY net of commission and slippage.',
+  },
+  {
+    label: '6. Synthesize Semiconductor CapEx Briefing (Research Mode)',
+    mode: 'Research',
+    prompt: 'Synthesize semiconductor CapEx exposure across NVDA, TSM, and ASML and check external research status.',
+  },
 ];
 
 export const AgentCenterPage: React.FC = () => {
   const {
-    agents,
-    aiModels,
+    assistantStatus,
+    taskModeProfiles,
+    selectedTaskMode,
+    setSelectedTaskMode,
+    unifiedModelConfig,
+    modelPresets,
+    updateUnifiedModelConfig,
+    applyModelPreset,
     toolPermissions,
+    toggleToolPermission,
     agentLogs,
     playgroundMessages,
-    assignAgentModel,
-    toggleToolPermission,
     sendPlaygroundPrompt,
+    approvalTasks,
   } = useOFinance();
 
-  const [selectedAgentId, setSelectedAgentId] = useState<AgentRoleId>('orchestrator');
+  const navigate = useNavigate();
+
   const [promptInput, setPromptInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'playground' | 'details' | 'permissions' | 'logs'>('playground');
+  const [activeTab, setActiveTab] = useState<'playground' | 'config' | 'tools' | 'logs'>('playground');
+  const [logModeFilter, setLogModeFilter] = useState<'ALL' | AssistantTaskMode>('ALL');
 
-  const selectedAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-  const assignedModel = aiModels.find((m) => m.id === selectedAgent.assignedModelId) || aiModels[0];
-  const agentSpecificLogs = agentLogs.filter((l) => l.agentId === selectedAgentId);
+  const currentModeProfile =
+    taskModeProfiles.find((p) => p.mode === selectedTaskMode) || taskModeProfiles[0];
 
-  const handlePromptSubmit = (e: React.FormEvent) => {
+  const pendingApprovals = approvalTasks.filter((t) => t.status === 'Pending');
+
+  const filteredLogs = agentLogs.filter(
+    (log) => logModeFilter === 'ALL' || log.taskMode === logModeFilter
+  );
+
+  const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!promptInput.trim()) return;
-    sendPlaygroundPrompt(promptInput);
+    sendPlaygroundPrompt(promptInput, selectedTaskMode);
     setPromptInput('');
   };
+
+  const toolCategories = [
+    'Read-Only',
+    'Deterministic Computation',
+    'Drafting',
+    'Governance',
+    'Restricted (Prohibited)',
+  ] as const;
+
+  const budgetUsagePct = Math.min(
+    100,
+    Math.round((assistantStatus.budgetUsedTodayUSD / unifiedModelConfig.daily_budget_usd) * 100)
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            AI Agent Control Center & Pydantic AI Governance (SIMULATED)
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
+              AI Assistant Center · OFinanceAssistant (DEMO)
+            </h1>
+            <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 font-mono text-[11px] font-semibold">
+              Single-Assistant Architecture v0.3
+            </span>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Multi-agent orchestration architecture (Orchestrator, Accounting, Investment, Research, Quant, Auditor, Risk). All executions are simulated by the Mock Agent Runtime.
+            One reusable Pydantic AI assistant (<code className="font-mono">OFinanceAssistant</code>) with 6 task mode configuration profiles, one unified LLM provider, and deterministic tool execution.
           </p>
         </div>
 
-        <div className="flex items-center bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 rounded p-0.5 text-xs font-mono">
+        {/* Section Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
           {[
-            { id: 'playground', label: '1. Playground & Tool Timeline' },
-            { id: 'details', label: '2. Agent Inspector & Model Routing' },
-            { id: 'permissions', label: '3. Tool Registry & Permissions' },
-            { id: 'logs', label: `4. Task Queue, History & Error Logs (${agentLogs.length})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`px-3 py-1.5 rounded transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-slate-900 text-white dark:bg-blue-600'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { id: 'playground', label: '1. Assistant Playground & Timeline', icon: Terminal },
+            { id: 'config', label: '2. Unified Model & Budget Config', icon: Sliders },
+            { id: 'tools', label: '3. Unified Tool Registry (20)', icon: Lock },
+            { id: 'logs', label: `4. Execution History & Guardrails (${agentLogs.length})`, icon: Activity },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-slate-900 text-white dark:bg-blue-600'
+                    : 'bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 12.1 7-Agent Roster Cards Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
-        {agents.map((ag) => {
-          const isSelected = ag.id === selectedAgentId;
-          const model = aiModels.find((m) => m.id === ag.assignedModelId);
-          return (
-            <button
-              key={ag.id}
-              type="button"
-              onClick={() => setSelectedAgentId(ag.id)}
-              className={`p-3 rounded border text-left transition-colors flex flex-col justify-between ${
-                isSelected
-                  ? 'bg-blue-600/10 border-blue-500 text-slate-900 dark:text-white'
-                  : 'bg-white dark:bg-[#0F1420] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between text-[10px] font-mono text-blue-500">
-                  <span>{ag.id.toUpperCase()}</span>
-                  <span>SIM</span>
-                </div>
-                <div className="text-xs font-bold mt-0.5 truncate">{ag.name}</div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-                  {ag.role}
-                </div>
-              </div>
-              <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 text-[10px] font-mono text-slate-400 truncate">
-                {model?.provider}: {model?.modelName.split(':')[0]}
-              </div>
-            </button>
-          );
-        })}
+      {/* Single Assistant Architecture & Global AI Budget Monitor Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 font-mono text-xs">
+        <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>Central AI Instance</span>
+            <Cpu className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+            {assistantStatus.assistantName}
+          </div>
+          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
+            {assistantStatus.runtimeStatus} · 0 Sub-Agents
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>Unified LLM Provider & Model</span>
+            <Layers className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <div className="text-sm font-bold text-slate-900 dark:text-white mt-1 truncate">
+            {unifiedModelConfig.provider} · {unifiedModelConfig.model}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 truncate">
+            Shared across all 6 Task Modes · Timeout {unifiedModelConfig.request_timeout}s
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>Credential Isolation Status</span>
+            <KeyRound className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+            api_key_configured: {unifiedModelConfig.api_key_configured ? 'true' : 'false'}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+            Backend Vault / OS Keyring Only · 0 Keys in Browser
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>Global AI Budget Monitor (Today)</span>
+            <DollarSign className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
+              ${assistantStatus.budgetUsedTodayUSD.toFixed(2)} / ${unifiedModelConfig.daily_budget_usd.toFixed(2)} USD
+            </span>
+            <span className="text-[11px] text-slate-400">
+              Per-Task Cap: ${unifiedModelConfig.per_task_budget_usd.toFixed(2)}
+            </span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden mt-1.5">
+            <div
+              className="h-full bg-blue-600 dark:bg-blue-500"
+              style={{ width: `${budgetUsagePct}%` }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* TAB 1: 12.4 Agent Playground & Multi-Agent Call Chain */}
+      {/* Task Mode Selector Bar (6 Configuration Profiles, Not Separate Agents) */}
+      <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+              Task Mode Selector (Configuration Profiles on Shared OFinanceAssistant)
+            </h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Select a task mode profile to inspect its dynamic instructions, permitted data scope, accessible tools, structured output schema, and approval policy.
+            </p>
+          </div>
+          <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
+            Active Mode: {selectedTaskMode}
+          </span>
+        </div>
+
+        {/* 6 Mode Selector Buttons */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {taskModeProfiles.map((profile) => {
+            const isSelected = profile.mode === selectedTaskMode;
+            return (
+              <button
+                key={profile.mode}
+                type="button"
+                onClick={() => setSelectedTaskMode(profile.mode)}
+                className={`p-2.5 rounded border text-left transition-all ${
+                  isSelected
+                    ? 'bg-blue-600/10 border-blue-500 text-slate-900 dark:text-white shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+                }`}
+              >
+                <div className="font-mono text-xs font-bold flex items-center justify-between">
+                  <span className="truncate">{profile.mode}</span>
+                  {isSelected && <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                  {profile.tagline}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Task Mode Profile Specification Card */}
+        <div className="p-3.5 rounded bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 grid grid-cols-1 lg:grid-cols-12 gap-4 text-xs">
+          <div className="lg:col-span-5 space-y-2">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                Mode Instructions (Pydantic AI Dynamic System Prompt)
+              </span>
+              <p className="text-slate-800 dark:text-slate-200 mt-0.5 leading-relaxed">
+                {currentModeProfile.instructions}
+              </p>
+            </div>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                Permitted Data Scope
+              </span>
+              <p className="font-mono text-[11px] text-slate-700 dark:text-slate-300 mt-0.5">
+                {currentModeProfile.permittedDataScope}
+              </p>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 space-y-2">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                Accessible Deterministic Tools ({currentModeProfile.accessibleTools.length})
+              </span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {currentModeProfile.accessibleTools.map((tool) => (
+                  <span
+                    key={tool}
+                    className="px-2 py-0.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-blue-600 dark:text-blue-400"
+                  >
+                    {tool}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                Expected Structured Output (Pydantic Model)
+              </span>
+              <code className="block font-mono text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 break-all">
+                {currentModeProfile.expectedOutputSchema}
+              </code>
+            </div>
+          </div>
+
+          <div className="lg:col-span-3 space-y-2 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 pt-2 lg:pt-0 lg:pl-4">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                Permission Requirements
+              </span>
+              <ul className="mt-0.5 space-y-0.5 font-mono text-[11px] text-slate-700 dark:text-slate-300">
+                {currentModeProfile.permissionRequirements.map((req) => (
+                  <li key={req}>• {req}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                Human Approval Policy
+              </span>
+              <p className="font-mono text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                {currentModeProfile.approvalPolicy}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* TAB 1: Assistant Playground & Sequential Task Execution Timeline */}
       {activeTab === 'playground' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left: Prompt Launcher & Selected Agent Quick Profile (4 cols) */}
+          {/* Left: Prompt Controls, Mode Quick-Triggers & Approval Integration (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Preset Multi-Agent Analytical Prompts
-                </h2>
-                <span className="text-[10px] font-mono text-amber-500">SIMULATED RUNTIME</span>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Simulated Task Prompts
+                </h3>
+                <span className="text-[11px] font-mono text-slate-400">POST /api/v1/assistant/run</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Click any prompt below to simulate Orchestrator task decomposition, deterministic tool invocation, and specialist agent synthesis:
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Click a preset below to run <code className="font-mono">OFinanceAssistant</code> in the corresponding task mode and inspect the sequential tool call timeline:
               </p>
 
               <div className="space-y-2">
-                {PRESET_PROMPTS.map((preset) => (
+                {PRESET_PROMPTS.map((item) => (
                   <button
-                    key={preset}
+                    key={item.label}
                     type="button"
-                    onClick={() => sendPlaygroundPrompt(preset)}
-                    className="w-full text-left p-2.5 rounded bg-slate-50 dark:bg-slate-900/80 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 text-xs text-slate-800 dark:text-slate-200 transition-colors flex items-center justify-between gap-2"
+                    onClick={() => sendPlaygroundPrompt(item.prompt, item.mode)}
+                    className="w-full text-left p-2.5 rounded bg-slate-50 dark:bg-slate-900 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 text-xs transition-colors"
                   >
-                    <span>"{preset}"</span>
-                    <Send className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    <div className="font-semibold text-blue-600 dark:text-blue-400">{item.label}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                      "{item.prompt}"
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Selected Agent Summary Card */}
+            {/* Human-in-the-Loop Approval Integration Box */}
             <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 dark:text-white">{selectedAgent.name}</span>
-                <span className="font-mono text-[11px] text-amber-500">{selectedAgent.runtimeStatus}</span>
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  Human Approval Integration
+                </span>
+                <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">
+                  {pendingApprovals.length} Pending
+                </span>
               </div>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px]">{selectedAgent.description}</p>
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1 font-mono text-[11px]">
-                <div>
-                  <span className="text-slate-400">Model:</span> {assignedModel.modelName}
-                </div>
-                <div>
-                  <span className="text-slate-400">Tools:</span> {selectedAgent.tools.join(', ')}
-                </div>
-                <div>
-                  <span className="text-slate-400">Budget Used:</span> ${selectedAgent.budgetUsedUSD.toFixed(2)} / ${selectedAgent.executionBudgetUSD.toFixed(2)} USD
-                </div>
-              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Whenever <code className="font-mono">OFinanceAssistant</code> invokes <code className="font-mono">Request Human Approval</code>, tasks are queued in the Approval Inbox before any ledger state changes occur.
+              </p>
               <button
                 type="button"
-                onClick={() => setActiveTab('details')}
-                className="w-full py-1.5 mt-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs"
+                onClick={() => navigate('/approvals')}
+                className="w-full py-1.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono text-[11px] font-semibold hover:bg-amber-500/25"
               >
-                Configure {selectedAgent.name} Model & Budget →
+                Open Approval Inbox ({pendingApprovals.length} Tasks) →
               </button>
             </div>
           </div>
 
-          {/* Right: Multi-Turn Orchestrator Trace Console (8 cols) */}
+          {/* Right: Assistant Playground Stream & Sequential Tool Execution Timeline (8 cols) */}
           <div className="lg:col-span-8 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-blue-500" />
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Orchestrator Execution Trace & Specialist Call Chain
-                </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  OFinanceAssistant Execution Timeline (Simulated Sequential Tool Trace)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Single assistant invoking deterministic tools in sequence · Zero sub-agent delegation
+                </p>
               </div>
-              <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400">
-                MOCK AGENT RUNTIME · DETERMINISTIC NUMBERS
+              <span className="font-mono text-[11px] text-amber-600 dark:text-amber-400">
+                SIMULATED RUNTIME · DETERMINISTIC TOOLS
               </span>
             </div>
 
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+            {/* Message & Sequential Tool Timeline Stream */}
+            <div className="space-y-4 max-h-[540px] overflow-y-auto pr-1">
               {playgroundMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`p-3.5 rounded border text-xs ${
+                  className={`p-3.5 rounded border text-xs space-y-3 ${
                     msg.role === 'user'
-                      ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                      : 'bg-blue-950/20 border-blue-500/30 space-y-3'
+                      ? 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
+                      : 'bg-blue-950/15 border-blue-500/30'
                   }`}
                 >
-                  <div className="flex items-center justify-between font-mono text-[11px] text-slate-400">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {msg.role === 'user' ? 'OPERATOR REQUEST' : 'ORCHESTRATOR AGENT (SIMULATED TRACE)'}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {msg.role === 'user'
+                          ? 'OPERATOR PROMPT'
+                          : 'OFinanceAssistant (Pydantic AI Single Runtime)'}
+                      </span>
+                      {msg.taskMode && (
+                        <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-300 text-[10px] font-semibold">
+                          Mode: {msg.taskMode}
+                        </span>
+                      )}
+                    </div>
                     <span>{msg.timestamp}</span>
                   </div>
 
                   <p className="text-slate-800 dark:text-slate-200 leading-relaxed">{msg.content}</p>
 
-                  {/* Delegated Agent Call Chain Steps */}
-                  {msg.delegatedAgents && (
+                  {/* Visual Chain Summary Header */}
+                  {msg.toolTimeline && msg.toolTimeline.length > 0 && (
                     <div className="space-y-2 pt-1">
-                      <div className="text-[11px] font-mono font-semibold text-slate-400">
-                        AGENT CALL CHAIN & TOOL INVOCATIONS:
+                      <div className="p-2 rounded bg-slate-900 text-slate-200 font-mono text-[11px] flex flex-wrap items-center gap-1.5">
+                        <span className="text-blue-400 font-bold">OFinanceAssistant</span>
+                        {msg.toolTimeline.map((step) => (
+                          <React.Fragment key={step.stepNumber}>
+                            <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300">
+                              {step.toolName}
+                            </span>
+                          </React.Fragment>
+                        ))}
                       </div>
-                      {msg.delegatedAgents.map((step, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 rounded bg-white dark:bg-[#0D1322] border border-slate-200 dark:border-slate-800 space-y-1"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px]">
-                            <span className="font-bold text-blue-600 dark:text-blue-400">
-                              Step {idx + 1} · {step.agentName}: {step.stepTitle}
-                            </span>
-                            <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>{step.status}</span>
-                            </span>
+
+                      {/* Step-by-Step Deterministic Tool Cards */}
+                      <div className="space-y-2">
+                        {msg.toolTimeline.map((step) => (
+                          <div
+                            key={step.stepNumber}
+                            className="p-2.5 rounded bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 space-y-1"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px]">
+                              <span className="font-bold text-blue-600 dark:text-blue-400">
+                                Step {step.stepNumber}: {step.toolName}{' '}
+                                <span className="text-[10px] font-normal text-slate-400">
+                                  [{step.category}]
+                                </span>
+                              </span>
+                              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>
+                                  {step.status} · {step.durationMs}ms
+                                </span>
+                              </span>
+                            </div>
+                            <div className="font-mono text-[11px] text-slate-500">
+                              Call: <code>{step.callSignature}</code>
+                            </div>
+                            <p className="text-slate-700 dark:text-slate-300 text-xs pt-0.5">
+                              {step.deterministicFinding}
+                            </p>
                           </div>
-                          <div className="text-[10px] font-mono text-slate-400">
-                            Tool Invoked: <code className="text-amber-500">{step.toolCalled}</code>
-                          </div>
-                          <p className="text-slate-700 dark:text-slate-300 text-[11px] pt-0.5">
-                            {step.finding}
-                          </p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* Deterministic Metrics Strip */}
+                  {/* Structured Metrics Summary */}
                   {msg.structuredMetrics && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono">
                       {msg.structuredMetrics.map((m) => (
                         <div
                           key={m.label}
-                          className="p-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                          className="p-2 rounded bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800"
                         >
                           <div className="text-[10px] text-slate-400 truncate">{m.label}</div>
                           <div className="text-xs font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
@@ -254,156 +499,93 @@ export const AgentCenterPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Input Form */}
-            <form onSubmit={handlePromptSubmit} className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            {/* Prompt Input Form */}
+            <form onSubmit={handleSend} className="flex flex-wrap sm:flex-nowrap gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <select
+                aria-label="Select Task Mode for Prompt"
+                value={selectedTaskMode}
+                onChange={(e) => setSelectedTaskMode(e.target.value as AssistantTaskMode)}
+                className="px-2.5 py-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-800 dark:text-slate-200"
+              >
+                {taskModeProfiles.map((p) => (
+                  <option key={p.mode} value={p.mode}>
+                    Mode: {p.mode}
+                  </option>
+                ))}
+              </select>
               <input
                 type="text"
-                aria-label="Ask Orchestrator Agent"
+                aria-label="Ask OFinanceAssistant"
                 value={promptInput}
                 onChange={(e) => setPromptInput(e.target.value)}
-                placeholder="Ask Orchestrator (e.g., 分析我所有券商账户的持仓集中度 / Analyze cash flow)..."
-                className="flex-1 px-3 py-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs focus:outline-none focus:border-blue-500"
+                placeholder={`Ask OFinanceAssistant in ${selectedTaskMode} Mode...`}
+                className="flex-1 px-3 py-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
               />
               <button
                 type="submit"
                 className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Simulate Dispatch</span>
+                <span>Run Assistant (Sim)</span>
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* TAB 2: 12.2 Agent Details & 12.3 Model Routing Configuration */}
-      {activeTab === 'details' && (
+      {/* TAB 2: Unified Model Configuration & Global Budget */}
+      {activeTab === 'config' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-7 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <div>
-                <h2 className="text-base font-display font-bold text-slate-900 dark:text-white">
-                  {selectedAgent.name} — {selectedAgent.role}
-                </h2>
-                <p className="text-xs font-mono text-amber-500 mt-0.5">
-                  Runtime Status: {selectedAgent.runtimeStatus} · Memory: {selectedAgent.memoryStatus}
-                </p>
-              </div>
-              <Cpu className="w-5 h-5 text-blue-500" />
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              {selectedAgent.description}
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                <div className="font-semibold text-slate-900 dark:text-white">Core Responsibilities</div>
-                <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 list-disc pl-4">
-                  {selectedAgent.responsibilities.map((r) => (
-                    <li key={r}>{r}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="p-3 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2 font-mono text-[11px]">
-                <div className="font-sans font-semibold text-slate-900 dark:text-white text-xs">
-                  Telemetry & Budget Governance
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Assigned Model:</span>
-                  <span className="font-bold text-blue-400">{assignedModel.modelName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Last Execution:</span>
-                  <span>{selectedAgent.lastExecution}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Tokens Used Today:</span>
-                  <span>{selectedAgent.tokensUsedToday.toLocaleString()} tok</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Daily Budget Used:</span>
-                  <span>
-                    ${selectedAgent.budgetUsedUSD.toFixed(2)} / ${selectedAgent.executionBudgetUSD.toFixed(2)} USD
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Error Logs (24h):</span>
-                  <span className="text-emerald-500">{selectedAgent.errorCount} Errors</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Agent-Specific Execution History */}
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                Recent Executions for {selectedAgent.name} ({agentSpecificLogs.length})
-              </div>
-              <div className="space-y-1.5 font-mono text-[11px]">
-                {agentSpecificLogs.map((l) => (
-                  <div
-                    key={l.id}
-                    className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2"
-                  >
-                    <div>
-                      <span className="text-blue-500 font-bold">{l.id}</span> · {l.timestamp} ·{' '}
-                      <span className="font-sans text-slate-800 dark:text-slate-200">{l.taskSummary}</span>
-                    </div>
-                    <span className="text-emerald-500">{l.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* 12.3 Model Routing Selector for Selected Agent (5 cols) */}
+          {/* Left: Global Provider Presets (5 cols) */}
           <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Model Provider Routing for {selectedAgent.name}
+                Primary LLM Provider Presets (Global Selection)
               </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Provider-independent Pydantic AI configuration. API Keys are never exposed in the client browser.
+              <p className="text-[11px] text-slate-500">
+                O-Finance v0.3 enforces one shared LLM provider across all task modes. Local Ollama remains available as an optional global provider without creating separate agents.
               </p>
             </div>
 
             <div className="space-y-2.5">
-              {aiModels.map((m) => {
-                const isAssigned = selectedAgent.assignedModelId === m.id;
+              {modelPresets.map((preset) => {
+                const isCurrent =
+                  unifiedModelConfig.provider === preset.provider &&
+                  unifiedModelConfig.model === preset.model;
                 return (
                   <div
-                    key={m.id}
+                    key={preset.id}
                     className={`p-3 rounded border text-xs space-y-1.5 ${
-                      isAssigned
+                      isCurrent
                         ? 'bg-blue-600/10 border-blue-500'
-                        : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800'
+                        : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between font-mono">
                       <span className="font-bold text-slate-900 dark:text-white">
-                        {m.provider} · <span className="font-mono text-blue-500">{m.modelName}</span>
+                        {preset.provider} · {preset.model}
                       </span>
-                      <span className="font-mono text-[10px] text-slate-400">{m.status}</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                        {preset.model_status}
+                      </span>
                     </div>
-                    <div className="font-mono text-[11px] text-slate-500">
-                      Endpoint: {m.endpoint} · Context: {m.contextWindow}
+                    <div className="font-mono text-[11px] text-slate-500 truncate">
+                      base_url: {preset.base_url}
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="font-mono text-[10px] text-slate-400">
-                        Est. Speed: {m.latencyEstimate}
+                        Context: {preset.contextWindow} · {preset.latencyEstimate}
                       </span>
                       <button
                         type="button"
-                        onClick={() => assignAgentModel(selectedAgent.id, m.id)}
-                        disabled={isAssigned}
-                        className={`px-3 py-1 rounded text-[11px] font-medium ${
-                          isAssigned
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-900 dark:bg-slate-800 text-white hover:bg-blue-600'
+                        onClick={() => applyModelPreset(preset.id)}
+                        className={`px-2.5 py-1 rounded font-mono text-[11px] ${
+                          isCurrent
+                            ? 'bg-blue-600 text-white font-semibold'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
                         }`}
                       >
-                        {isAssigned ? 'Assigned to Agent' : 'Assign Model (Sim)'}
+                        {isCurrent ? 'Active Global Model' : 'Select Globally'}
                       </button>
                     </div>
                   </div>
@@ -411,178 +593,365 @@ export const AgentCenterPage: React.FC = () => {
               })}
             </div>
           </div>
+
+          {/* Right: Unified Model Configuration Form (`GET /api/v1/assistant/config`) (7 cols) */}
+          <div className="lg:col-span-7 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Unified Model Configuration (GET /api/v1/assistant/config)
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  Single shared configuration for <code className="font-mono">OFinanceAssistant</code>. No per-agent model routing or per-agent API keys exist.
+                </p>
+              </div>
+              <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+                {unifiedModelConfig.model_status}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono">
+              <div>
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  provider
+                </label>
+                <select
+                  aria-label="Global AI Provider"
+                  value={unifiedModelConfig.provider}
+                  onChange={(e) =>
+                    updateUnifiedModelConfig({
+                      provider: e.target.value as typeof unifiedModelConfig.provider,
+                    })
+                  }
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                >
+                  <option value="Gemini">Gemini (Primary Cloud)</option>
+                  <option value="Claude">Claude (Primary Cloud)</option>
+                  <option value="OpenAI-Compatible">OpenAI-Compatible</option>
+                  <option value="Local Ollama">Local Ollama (Optional Global Local)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  model
+                </label>
+                <input
+                  type="text"
+                  aria-label="Global Model Name"
+                  value={unifiedModelConfig.model}
+                  onChange={(e) => updateUnifiedModelConfig({ model: e.target.value })}
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  base_url
+                </label>
+                <input
+                  type="text"
+                  aria-label="Model Base URL"
+                  value={unifiedModelConfig.base_url}
+                  onChange={(e) => updateUnifiedModelConfig({ base_url: e.target.value })}
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  request_timeout (seconds)
+                </label>
+                <input
+                  type="number"
+                  aria-label="Request Timeout Seconds"
+                  value={unifiedModelConfig.request_timeout}
+                  onChange={(e) =>
+                    updateUnifiedModelConfig({ request_timeout: Number(e.target.value) })
+                  }
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  max_output_tokens
+                </label>
+                <input
+                  type="number"
+                  aria-label="Max Output Tokens"
+                  value={unifiedModelConfig.max_output_tokens}
+                  onChange={(e) =>
+                    updateUnifiedModelConfig({ max_output_tokens: Number(e.target.value) })
+                  }
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  daily_budget_usd ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  aria-label="Daily Budget USD"
+                  value={unifiedModelConfig.daily_budget_usd}
+                  onChange={(e) =>
+                    updateUnifiedModelConfig({ daily_budget_usd: Number(e.target.value) })
+                  }
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-sans text-slate-500 mb-1">
+                  per_task_budget_usd ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.05"
+                  aria-label="Per Task Budget USD"
+                  value={unifiedModelConfig.per_task_budget_usd}
+                  onChange={(e) =>
+                    updateUnifiedModelConfig({ per_task_budget_usd: Number(e.target.value) })
+                  }
+                  className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                />
+              </div>
+            </div>
+
+            {/* Security Invariant Box for API Key */}
+            <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-mono text-[11px] space-y-1">
+              <div className="font-bold">
+                api_key_configured: {String(unifiedModelConfig.api_key_configured)} · model_status: "{unifiedModelConfig.model_status}"
+              </div>
+              <div>
+                SECURITY INVARIANT: The single cloud LLM API key (`OFINANCE_AI_API_KEY`) is stored exclusively in the Python FastAPI backend environment or Kali Linux OS credential store. It is never stored in frontend state, browser LocalStorage, or `VITE_` environment variables.
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* TAB 3: 12.5 Agent Tool Permissions Matrix */}
-      {activeTab === 'permissions' && (
+      {/* TAB 3: Unified Tool Registry & Permission Matrix */}
+      {activeTab === 'tools' && (
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-blue-500" />
-                <span>Agent Tool Permissions & Hard Read-Only Guardrails</span>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Unified Tool Registry & Permission Matrix (GET /api/v1/assistant/tools)
               </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Toggle read, computation, and drafting capabilities. Real fund transfers, withdrawals, and live brokerage orders are permanently prohibited.
+              <p className="text-[11px] text-slate-500">
+                Tools are grouped by capability. Tools highlighted with a badge are accessible in the currently selected <strong>{selectedTaskMode}</strong> mode.
               </p>
             </div>
-            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">
-              Write/Execution Tools: PERMANENTLY LOCKED OFF
-            </span>
+            <div className="flex items-center gap-2 text-xs font-mono text-amber-600 dark:text-amber-400">
+              <ShieldAlert className="w-4 h-4" />
+              <span>Write / Live Trade / Fund Transfer Tools Permanently Locked OFF</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {toolPermissions.map((tool) => (
-              <div
-                key={tool.id}
-                className={`p-3.5 rounded border flex items-start justify-between gap-3 text-xs ${
-                  tool.lockedReadOnly
-                    ? 'bg-rose-500/5 border-rose-500/30'
-                    : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-900 dark:text-white">{tool.name}</span>
-                    <span className="font-mono text-[10px] text-slate-400">[{tool.category}]</span>
+          <div className="space-y-4">
+            {toolCategories.map((category) => {
+              const toolsInCategory = toolPermissions.filter((t) => t.category === category);
+              return (
+                <div key={category} className="space-y-2">
+                  <div className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 pb-1 flex items-center justify-between">
+                    <span>{category}</span>
+                    <span className="text-[11px] text-slate-400">
+                      {toolsInCategory.length} Tools
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{tool.description}</p>
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+                    {toolsInCategory.map((tool) => {
+                      const inActiveMode = currentModeProfile.accessibleTools.includes(tool.name);
+                      return (
+                        <div
+                          key={tool.id}
+                          className={`p-3 rounded border flex items-start justify-between gap-3 ${
+                            tool.lockedReadOnly
+                              ? 'bg-rose-950/10 border-rose-500/30'
+                              : inActiveMode
+                              ? 'bg-blue-600/5 border-blue-500/40'
+                              : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800'
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                {tool.name}
+                              </span>
+                              {inActiveMode && (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-300 font-mono text-[10px]">
+                                  Active in {selectedTaskMode}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {tool.description}
+                            </p>
+                          </div>
 
-                {tool.lockedReadOnly ? (
-                  <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-600/20 text-rose-500 font-mono text-[10px] shrink-0">
-                    <Lock className="w-3 h-3" />
-                    <span>BLOCKED</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleToolPermission(tool.id)}
+                            className={`px-2.5 py-1 rounded font-mono text-[11px] shrink-0 ${
+                              tool.lockedReadOnly
+                                ? 'bg-rose-500/20 text-rose-500 cursor-not-allowed'
+                                : tool.enabled
+                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                            }`}
+                          >
+                            {tool.lockedReadOnly
+                              ? 'LOCKED OFF'
+                              : tool.enabled
+                              ? 'ENABLED'
+                              : 'DISABLED'}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={tool.enabled}
-                    aria-label={`Toggle ${tool.name}`}
-                    onClick={() => toggleToolPermission(tool.id)}
-                    className={`px-3 py-1 rounded font-mono text-[11px] font-semibold shrink-0 transition-colors ${
-                      tool.enabled
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                    }`}
-                  >
-                    {tool.enabled ? 'ENABLED' : 'DISABLED'}
-                  </button>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* TAB 4: Task Queue, Tool Call Timeline, Error Logs & 30 Agent Execution Logs */}
+      {/* TAB 4: Execution History, Error Logs & Guardrail Interception Logs */}
       {activeTab === 'logs' && (
         <div className="space-y-4">
-          {/* Task Queue & Error / Guardrail Telemetry Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-7 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Simulated Agent Task Queue (Pydantic AI Worker Pool)
-                </h2>
-                <span className="text-[11px] font-mono text-emerald-500">Worker Pool: Standby (Mock)</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
-                <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                  <div className="text-[10px] text-slate-400">Queued Scheduled Tasks</div>
-                  <div className="font-bold text-slate-900 dark:text-white mt-0.5">2 Cron Jobs</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">Next: 20:00 UTC Sync Audit</div>
-                </div>
-                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30">
-                  <div className="text-[10px] text-amber-600 dark:text-amber-400">Awaiting Human Gate</div>
-                  <div className="font-bold text-amber-600 dark:text-amber-400 mt-0.5">5 Approval Tasks</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">Paused in Approval Inbox</div>
-                </div>
-                <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                  <div className="text-[10px] text-slate-400">Completed Runs (24h)</div>
-                  <div className="font-bold text-emerald-500 mt-0.5">{agentLogs.length} Runs</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">Avg Latency: 540ms</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Error Logs & Guardrail Interceptions (24h)
-                </h2>
-                <span className="text-[11px] font-mono text-emerald-500">0 Fatal Runtime Errors</span>
-              </div>
-              <div className="space-y-1.5 font-mono text-[11px]">
-                <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-between">
-                  <span>[GUARDRAIL] Low-Confidence Wire (0.64 &lt; 0.85)</span>
-                  <span>Escalate → APR-2026-001</span>
-                </div>
-                <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-between">
-                  <span>[CONNECTOR] EEA Bank PSD2 Consent &gt; 24h Stale</span>
-                  <span>Logged → ALOG-021</span>
-                </div>
-                <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
-                  <span>[MATH CHECK] All Agent Outputs Verified vs SQL/TS</span>
-                  <span>0 Hallucinations</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
+          {/* Guardrail Interception Logs */}
           <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Complete Agent Execution Telemetry & Tool Call Timeline ({agentLogs.length} Simulated Runs)
-              </h2>
-              <span className="text-xs font-mono text-slate-400">Append-Only Runtime Log</span>
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="w-4 h-4 text-amber-500" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Guardrail Interception & Policy Enforcement Logs
+                </h2>
+              </div>
+              <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">
+                0 Unhandled Runtime Errors · {GUARDRAIL_INTERCEPTION_LOGS.length} Policy Interceptions Verified
+              </span>
             </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                  <th className="py-2 pr-3 font-medium">Log ID</th>
-                  <th className="py-2 px-3 font-medium">Timestamp</th>
-                  <th className="py-2 px-3 font-medium">Agent</th>
-                  <th className="py-2 px-3 font-medium">Trigger</th>
-                  <th className="py-2 px-3 font-medium">Task Summary & Output</th>
-                  <th className="py-2 px-3 font-medium">Tools Invoked</th>
-                  <th className="py-2 pl-3 font-medium text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-mono text-[11px]">
-                {agentLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-2.5 pr-3 font-bold text-blue-500 whitespace-nowrap">{log.id}</td>
-                    <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">{log.timestamp}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                      {log.agentName}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">{log.trigger}</td>
-                    <td className="py-2.5 px-3 font-sans max-w-md">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{log.taskSummary}</div>
-                      <div className="text-[10px] text-slate-500 truncate">{log.outputPreview}</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500">{log.toolsInvoked.join(', ')}</td>
-                    <td className="py-2.5 pl-3 text-right whitespace-nowrap">
-                      <span
-                        className={
-                          log.status === 'Success (Simulated)'
-                            ? 'text-emerald-500'
-                            : 'text-amber-500 font-semibold'
-                        }
-                      >
-                        {log.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              {GUARDRAIL_INTERCEPTION_LOGS.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 rounded bg-amber-500/5 border border-amber-500/30 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between font-mono text-[11px]">
+                    <span className="font-bold text-amber-600 dark:text-amber-400">{item.id}</span>
+                    <span className="text-slate-400">{item.taskMode} Mode</span>
+                  </div>
+                  <div className="font-semibold text-slate-900 dark:text-white">
+                    {item.attemptedAction}
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-500">
+                    Rule: {item.policyRule}
+                  </div>
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                    → {item.resolution}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Task Execution History Table */}
+          <div className="rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  OFinanceAssistant Execution History ({filteredLogs.length} Tasks)
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  Every execution runs on the single shared <code className="font-mono">OFinanceAssistant</code> instance under a specific Task Mode profile
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1 text-[11px] font-mono">
+                {(['ALL', ...taskModeProfiles.map((p) => p.mode)] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setLogModeFilter(mode)}
+                    className={`px-2 py-1 rounded ${
+                      logModeFilter === mode
+                        ? 'bg-slate-900 text-white dark:bg-blue-600'
+                        : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 bg-slate-50/50 dark:bg-slate-900/40">
+                    <th className="py-2.5 px-3 font-medium">Task ID</th>
+                    <th className="py-2.5 px-3 font-medium">Timestamp</th>
+                    <th className="py-2.5 px-3 font-medium">Assistant & Task Mode</th>
+                    <th className="py-2.5 px-3 font-medium">Trigger</th>
+                    <th className="py-2.5 px-3 font-medium">Task Summary & Sequential Tools</th>
+                    <th className="py-2.5 px-3 font-medium text-right">Duration / Cost</th>
+                    <th className="py-2.5 px-3 font-medium text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
+                  {filteredLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                        {log.id}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        {log.timestamp}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="font-mono font-semibold text-slate-900 dark:text-white">
+                          {log.assistantName}
+                        </div>
+                        <div className="text-[10px] font-mono text-blue-600 dark:text-blue-400">
+                          Mode: {log.taskMode}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        {log.trigger}
+                      </td>
+                      <td className="py-2.5 px-3 max-w-md">
+                        <div className="text-slate-900 dark:text-slate-100 font-medium">
+                          {log.taskSummary}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono truncate">
+                          Tools: {log.toolsInvoked.join(' → ')}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-right whitespace-nowrap tabular-nums">
+                        {log.durationMs}ms · {log.tokensUsed} tok (${log.estimatedCostUSD.toFixed(2)})
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-right whitespace-nowrap">
+                        <span
+                          className={
+                            log.status === 'Success (Simulated)'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-amber-600 dark:text-amber-400 font-semibold'
+                          }
+                        >
+                          {log.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

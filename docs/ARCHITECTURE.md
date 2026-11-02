@@ -1,34 +1,59 @@
-# O-Finance System Architecture
+# O-Finance System Architecture (v0.3)
 
-## 1. Architectural Vision
+## 1. Six-Layer Workstation Architecture
 
-O-Finance is designed as a **Local-First Personal Financial Operating System**. The current repository provides the complete **Desktop UI Prototype (v0.1)** with a clean Service & API Client abstraction layer (`src/services/`) so the frontend can transition seamlessly from the deterministic Mock Adapter to the local Python FastAPI backend on Kali Linux.
+O-Finance is architected as a modular, local-first personal financial workstation separated into six explicit layers:
 
-| Layer | Technology | Primary Responsibility |
-|---|---|---|
-| **Desktop UI** | React 19 + TypeScript + Tailwind CSS | High-density financial workstation & governance cockpit |
-| **Desktop Shell** | Tauri (Planned Phase 2) | Native Linux/macOS windowing & local process supervision |
-| **API Backend** | Python 3.12 + FastAPI | REST API contract, connector orchestration, deterministic math |
-| **AI Harness** | Pydantic AI | Type-safe multi-agent runtime, tool validation, budget caps |
-| **Workflow** | Pydantic AI / LangGraph | Multi-step research & reconciliation state machines |
-| **Accounting** | Beancount | Authoritative plain-text double-entry accounting ledger |
-| **Accounting UI** | Fava | Dedicated web interface for Beancount reports (`127.0.0.1:5000`) |
-| **Main Database** | PostgreSQL 16 | Normalized transactions, connector state, append-only audit logs |
-| **Analytics & Quant** | DuckDB + Apache Parquet | Vectorized OHLCV storage, factor research, backtest engine |
-| **Local Models** | Ollama (`qwen2.5-coder`, `deepseek-r1`) | Local privacy-preserving inference |
-| **Cloud Models** | Gemini / Claude / OpenAI-Compatible | Optional high-context cloud synthesis via server-side proxy |
+```text
++-----------------------------------------------------------------------------------+
+| LAYER 1: DESKTOP WEB WORKSTATION UI (React 19 + TypeScript + Tailwind CSS)        |
+| 11 Modules: Overview | Accounts | Transactions | Accounting | Portfolio | Market  |
+|             Quant Lab | AI Assistant Center | Approvals | Audit | Settings        |
++-----------------------------------------------------------------------------------+
+                                         |
+                         Typed REST API (/api/v1/*) + Mock Adapter
+                                         v
++-----------------------------------------------------------------------------------+
+| LAYER 2: PYTHON FASTAPI APPLICATION GATEWAY & GOVERNANCE LAYER                    |
+| AccountService | TransactionService | LedgerService | PortfolioService            |
+| MarketDataService | ResearchService | AssistantService | ApprovalService | Audit  |
++-----------------------------------------------------------------------------------+
+            |                                    |                           |
+            v                                    v                           v
++------------------------+     +----------------------------------+   +-------------+
+| LAYER 3: DETERMINISTIC |     | LAYER 4: SINGLE AI ASSISTANT     |   | LAYER 5:    |
+| FINANCIAL & QUANT CORE |     | RUNTIME (OFinanceAssistant)      |   | READ-ONLY   |
+| - Beancount + Fava     |     | - Shared Pydantic AI Instance    |   | CONNECTORS  |
+| - Exact FX & P&L Math  |     | - 6 Task Mode Profiles           |   | - IBKR Flex |
+| - DuckDB Backtester    |     | - 1 Unified Model & Backend Key  |   | - Schwab    |
++------------------------+     +----------------------------------+   | - Plaid/PSD2|
+            \                                    |                    +-------------+
+             \                                   |                           /
+              v                                  v                          v
++-----------------------------------------------------------------------------------+
+| LAYER 6: LOCAL SOVEREIGN STORAGE LAYER (Kali Linux Target)                        |
+| - PostgreSQL 16: Normalized accounts, transactions, approvals, SHA-256 audit log  |
+| - DuckDB + Apache Parquet: Historical OHLCV series, factor scores, backtest runs  |
+| - Beancount Plain-Text Git Repo: Authoritative double-entry ledger (main.beancount)|
++-----------------------------------------------------------------------------------+
+```
 
 ---
 
-## 2. Deterministic Financial Computation Invariant
+## 2. Single-Assistant Architecture (`OFinanceAssistant`)
 
-A core architectural law of O-Finance is **Deterministic Finance**:
-- Account balances, multi-currency FX conversions (`USD`, `GBP`, `EUR`), unrealized/realized P&L, portfolio weights, and backtest Sharpe/drawdown metrics are **always** computed by deterministic functions (`src/utils/finance.ts` in Demo Mode; Python Decimal/Polars/DuckDB in Production).
-- Large Language Models (LLMs) are **never** allowed to perform mental arithmetic on balances or fabricate account state.
+In v0.3, O-Finance replaced the simulated 7-agent orchestration topology with a **Single Assistant Architecture**:
+
+- **Central Assistant**: `OFinanceAssistant` (one shared Pydantic AI agent).
+- **Task Modes**: `Accounting`, `Portfolio Analysis`, `Research`, `Quantitative Research`, `Audit`, and `Risk Analysis`.
+- **Sequential Tool Execution**: Rather than spawning sub-agents or delegating across an agent graph, `OFinanceAssistant` loads the active Task Mode's system instructions and permitted tool subset, then invokes deterministic tools in sequence.
+- **Unified Model & Key**: One global provider configuration (`Gemini`, `Claude`, `OpenAI-Compatible`, or `Local Ollama`) and one backend credential (`OFINANCE_AI_API_KEY`).
 
 ---
 
-## 3. External Service Boundaries
+## 3. External Service Boundary: `daily_stock_analysis`
 
-1. **Beancount + Fava**: O-Finance acts as the unified ingestion, normalization, AI classification, and human-approval gateway that appends verified entries to `main.beancount`. Fava runs as a companion process for deep accounting statements.
-2. **Daily Analysis Connector (`daily_stock_analysis`)**: Treated strictly as an independent external read-only service. O-Finance never merges its codebase, duplicates its database, or re-implements its internal analysis pipeline.
+The external `daily_stock_analysis` project is treated strictly as an **independent external service** (`Daily Analysis Connector`):
+- Communicates only via read-only HTTP (`GET http://127.0.0.1:8090/api/v1/reports`).
+- Never shares database tables, Python runtime processes, or Beancount files with O-Finance.
+- Clearly displays `Not Connected` when the external service is not running locally.

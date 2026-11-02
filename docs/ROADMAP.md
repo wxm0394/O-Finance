@@ -1,20 +1,20 @@
-# O-Finance Development Roadmap
+# O-Finance Engineering Roadmap (v0.1 → v1.0)
 
-## Phase 1: Desktop UI Prototype & Service Architecture (v0.1 — Completed)
-- [x] Establish dark institutional desktop workstation layout (`WorkstationShell`) with collapsible navigation and global search.
-- [x] Implement all 11 core modules (`Overview`, `Accounts`, `Transactions`, `Accounting`, `Portfolio`, `Market Intelligence`, `Quant Lab`, `Agent Center`, `Approval Inbox`, `Audit & Security`, `Settings`).
-- [x] Build deterministic TypeScript financial math engine (`src/utils/finance.ts`) with unit tests (`src/utils/finance.test.ts`) verifying cross-page reconciliation and internal transfer exclusion.
-- [x] Create 10 modular service abstractions (`src/services/index.ts`) and unified API Client.
+## Phase 1: v0.1 — Desktop Workstation UI & Deterministic Financial Core (Completed)
+- Built 11-route financial workstation UI with institutional dark/light themes.
+- Implemented deterministic multi-currency (`USD`, `GBP`, `EUR`) net worth, cash flow, internal transfer matching, and DuckDB backtest simulator (`src/utils/finance.ts`).
 
-## Phase 2: Local Python FastAPI + Beancount/Fava Integration (v0.2)
-- [ ] Bootstrap Python FastAPI server (`127.0.0.1:8000`) with PostgreSQL 16 and SQLAlchemy/Alembic migrations.
-- [ ] Connect `LedgerService` to real local `main.beancount` file and live Fava instance (`127.0.0.1:5000`).
-- [ ] Implement read-only IBKR Flex Web Service XML importer and GoCardless UK/EU Open Banking AIS sync workers.
+## Phase 2: v0.2 — Workstation Refinement & Verification (Completed)
+- Verified end-to-end mathematical reconciliation across Overview, Accounts, Portfolio, and Beancount Trial Balance (`0.00 USD` residual).
+- Added unit test suite (`src/utils/finance.test.ts`) for deterministic financial logic.
 
-## Phase 3: DuckDB Quant Engine & Pydantic AI Runtime (v0.3)
-- [ ] Wire `Quant Lab` to local DuckDB + Parquet daily OHLCV store for vectorized multi-asset backtesting.
-- [ ] Wire `Agent Center` to live Pydantic AI agents using local Ollama (`qwen2.5-coder`) and server-side Gemini/Claude models.
-- [ ] Connect read-only `Daily Analysis Connector` to external `daily_stock_analysis` API.
+## Phase 3: v0.3 — Single Assistant Architecture Refactor (`OFinanceAssistant`) (Current Release)
+- Refactored AI layer from a simulated 7-agent topology to a single reusable **Pydantic AI** assistant (`OFinanceAssistant`).
+- Defined 6 Task Mode configuration profiles (`Accounting`, `Portfolio Analysis`, `Research`, `Quantitative Research`, `Audit`, `Risk Analysis`) sharing one global LLM provider config and one backend API key.
+- Redesigned **AI Assistant Center** with sequential deterministic tool execution timelines (`OFinanceAssistant → Tool 1 → Tool 2 → ...`), Unified Model Configuration, Unified Tool Registry, and Global AI Budget Monitor.
+- Standardized backend contract on `/api/v1/assistant/*`.
 
-## Phase 4: Tauri Desktop Packaging (v1.0)
-- [ ] Wrap React frontend and local daemon health supervisor into a native Linux desktop binary via Tauri v2.
+## Phase 4: v0.4 — Local Kali Linux FastAPI & Beancount Runtime Integration (Planned)
+- Connect frontend `ApiClient` (`VITE_DEMO_MODE=false`) to local Python FastAPI service on `127.0.0.1:8000`.
+- Wire `LedgerService` to live `bean-check` and local Fava daemon on `127.0.0.1:5000`.
+- Wire `ResearchService` to local DuckDB + Parquet OHLCV datasets and optional `daily_stock_analysis` read-only connector.

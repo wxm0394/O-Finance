@@ -1,81 +1,66 @@
-# O-Finance — Personal Financial Operating System
+# O-Finance — Private Financial Operating System (v0.3)
 
 > **DEMO MODE · SIMULATED FINANCIAL DATA**
-> Current Version: **Desktop UI Prototype v0.2**
-> All accounts, balances, transactions, Beancount journal entries, portfolio holdings, quant backtest metrics, and AI Agent traces in this prototype use deterministic simulation data. No real financial institutions or live trading APIs are connected.
+> This repository contains the Desktop Web Workstation Prototype (v0.3) of **O-Finance**, a local-first Private Financial Operating System unifying multi-institution banking and brokerage accounts, Beancount double-entry accounting, portfolio risk analytics, DuckDB quantitative strategy backtesting, and a single Pydantic AI assistant (`OFinanceAssistant`) with human-in-the-loop governance.
 
 ---
 
-## 1. What is O-Finance?
+## 1. Core Architectural Principles
 
-**O-Finance** is a local-first **Personal Financial Operating System** engineered for individuals managing multi-jurisdiction bank accounts (US, UK, EEA), multi-brokerage investment portfolios (Interactive Brokers, Charles Schwab, Firstrade), plain-text double-entry accounting (**Beancount + Fava**), systematic quantitative research (**DuckDB + Parquet**), and governed **Pydantic AI** specialist agents.
-
-Unlike consumer budgeting apps or standalone stock tickers, O-Finance unifies:
-1. **Multi-Institution Account Aggregation** (Read-only by default across USD, GBP, and EUR).
-2. **Authoritative Double-Entry Accounting** (Beancount ledger syntax + Fava web UI integration + Transfer Linking + Trial Balance, Balance Sheet, Income Statement, and Statement-vs-Ledger Reconciliation).
-3. **Institutional Portfolio Analytics** (Holdings, cost basis, realized/unrealized P&L, YTD Dividend Distribution & Withholding Tax ledger, 12-Month Historical Performance Attribution, sector/country/currency exposure, and concentration guardrails).
-4. **Market Intelligence & Read-Only External Connectors** (Including a strict boundary placeholder for `daily_stock_analysis`).
-5. **Quantitative Research Lab** (Parameterized strategy simulation, 4-stage execution pipeline status, equity/drawdown curves, and experiment registry).
-6. **Multi-Agent AI Control Center** (7 specialist agents coordinated by an Orchestrator with explicit tool permission gates, task queue telemetry, tool call timeline, and guardrail logs).
-7. **Human-in-the-Loop Approval Inbox & Append-Only Audit Trail**.
-
----
-
-## 2. Current Demo Features (v0.2 Refinement)
-
-- **11 Dedicated Workstation Modules** with full React Router navigation and keyboard accessibility (`Escape` closes all modals/drawers):
-  1. `Overview` — Executive Financial Cockpit with 100% reconciled wealth metrics (`$815,009.35 USD` Net Worth = `$204,260.00` Cash + `$616,572.00` Investments - `$5,822.65` Liabilities), base currency switcher (`USD` / `GBP` / `EUR`), 5 interactive Recharts visualizations (`1W` to `ALL`), Account Health panel, and clickable Recent Activity inspector.
-  2. `Accounts` — 6 simulated multi-currency accounts, 6 read-only connector cards (IBKR, Schwab, Firstrade, US/UK/European Banks), interactive state cycling across all connection states (`Connected (Simulated)`, `Not Connected`, `Authorization Required`, `Syncing`, `Sync Failed`, `Stale Data`, `Demo Only`), and automatic sync scheduler.
-  3. `Transactions` — 32 normalized records across 12 transaction types, explicit separation of **Confirmed Posted** vs **Unconfirmed/Pending** cash flows, cross-account **Transfer Linking** (`XFER-2026-881`, `XFER-2026-742`), multi-criteria filtering with one-click reset, sorting, pagination, and raw feed JSON + Beancount modal inspector.
-  4. `Accounting` — 3 interactive sub-views: (1) Beancount 5-root Chart of Accounts & expandable Journal Entries, (2) Trial Balance (`0.00 USD` residual), Balance Sheet & Income Statement, and (3) Multi-Institution Statement vs. Beancount Reconciliation + Pending Journal Drafts approval workflow + Fava placeholder integration (`http://127.0.0.1:5000`).
-  5. `Portfolio` — 17 holdings across IBKR, Schwab, Firstrade, and EU Depot (`$616,572.00 USD` total), plus 3 deep analytics tabs: (1) Concentration Risk, Sector & Currency Exposure, (2) YTD Dividend Distribution & Withholding Tax Ledger, and (3) 12-Month Historical Performance & Benchmark Attribution.
-  6. `Market Intelligence` — Global index snapshot, core watchlist, macro economic calendar, research briefings, and read-only placeholder for `Daily Analysis Connector`.
-  7. `Quant Lab` — 5 quantitative strategies, parameterized backtest runner with 4-stage execution status pipeline, equity/drawdown/monthly return charts, and 10+ experiment records.
-  8. `Agent Center` — 7 agents (`Orchestrator`, `Accounting`, `Investment`, `Research`, `Quant`, `Auditor`, `Risk`), multi-step Playground call chain trace, model routing selector (`Local Ollama`, `Gemini`, `Claude`, `OpenAI-Compatible`), tool permission matrix with hard read-only locks, Task Queue status, and Error/Guardrail interception logs.
-  9. `Approval Inbox` — 10 human-in-the-loop review tasks with Approve, Reject, and live Beancount draft editing.
-  10. `Audit & Security` — 10 constitutional security invariants and 20+ append-only SHA-256 audit logs that update live as you interact with the app.
-  11. `Settings` — Persistent local demo configuration (Base Currency, Dark/Light Theme, Sync Frequency, FastAPI/Fava URLs, Agent Budgets).
+1. **Local-First Sovereignty**: Financial databases, Beancount plain-text ledgers, and API credentials reside on the operator's local workstation (Kali Linux / Debian target).
+2. **Deterministic Financial Engine**: Balances, FX conversions (`USD`, `GBP`, `EUR`), double-entry trial balances, unrealized P&L, and backtest Sharpe/drawdown metrics are computed exclusively by deterministic TypeScript/Python functions (`src/utils/finance.ts`)—never by LLM mental arithmetic.
+3. **Single Assistant Architecture (`OFinanceAssistant`)**:
+   - **One AI Assistant Only**: `OFinanceAssistant` powered by a single shared **Pydantic AI** runtime.
+   - **Six Task Mode Configuration Profiles**: `Accounting`, `Portfolio Analysis`, `Research`, `Quantitative Research`, `Audit`, and `Risk Analysis`.
+   - **One Shared Model & API Key**: All task modes share one primary LLM provider configuration (`Gemini`, `Claude`, `OpenAI-Compatible`, or optional global `Local Ollama`) and one backend-only API key (`OFINANCE_AI_API_KEY`). No specialist sub-agent instances, no orchestrator-to-subagent delegation, and no per-agent model/key routing exist.
+4. **Read-Only Connectors by Default**: Bank and brokerage connectors (Interactive Brokers Flex, Charles Schwab Trader API, Plaid, TrueLayer, PSD2 AIS) are strictly read-only. Outbound wires, withdrawals, and live order placement are permanently disabled at the architecture level.
+5. **Human-in-the-Loop Governance**: Low-confidence classifications (`confidence < 0.85`), unposted Beancount drafts, and concentration warnings require explicit operator approval in the **Approval Inbox**.
+6. **External Service Isolation**: `daily_stock_analysis` is integrated strictly as an independent read-only HTTP connector (`Daily Analysis Connector`) with zero code or database merge.
 
 ---
 
-## 3. Quick Start & Local Development
+## 2. Workstation Modules (11 Routes)
 
-### Prerequisites
-- Node.js 20+ and npm
+| Route | Module | Key Capabilities |
+| :--- | :--- | :--- |
+| `/` | **Overview** | Net worth reconciliation (`Cash + Investments - Liabilities`), 12M performance vs benchmark, cash flow, currency exposure (`USD/GBP/EUR`), account health, and activity inspector. |
+| `/accounts` | **Accounts** | 6 multi-jurisdiction demo accounts (IBKR, Schwab, Firstrade, US/UK/EEA Banks) + 7 connector cards with simulated state cycling. |
+| `/transactions` | **Transactions** | 32 normalized transactions, cross-account internal transfer matching (`XFER-2026-881`, `XFER-2026-742`), raw source JSON inspector, and CSV export. |
+| `/accounting` | **Accounting** | 5-root Beancount chart of accounts, expandable journal entries, trial balance (`0.00 USD` residual), balance sheet, income statement, reconciliation table, and Fava placeholder modal. |
+| `/portfolio` | **Portfolio** | 17 holdings across 4 accounts, concentration warnings, asset/sector/country/currency breakdown, dividend summary, and position drawer. |
+| `/market-intelligence` | **Market Intelligence** | Global watchlist, fundamental/macro research briefings, economic calendar, and independent `Daily Analysis Connector` status panel. |
+| `/quant-lab` | **Quant Lab** | 5 systematic strategy templates, parameterized deterministic backtest runner (commission & slippage bps), and 10 historical experiment logs. |
+| `/agent-center` | **AI Assistant Center** | `OFinanceAssistant` playground, 6 Task Mode configuration profiles, sequential deterministic tool timeline, unified model & budget config, and 20-tool permission matrix. |
+| `/approvals` | **Approval Inbox** | 10 human-in-the-loop governance tasks with inline Beancount draft editing, approve/reject controls, and live state updates. |
+| `/audit` | **Audit & Security** | 10 constitutional security invariants and an append-only SHA-256 verification audit stream. |
+| `/settings` | **Settings** | Base currency, dark/light theme, FastAPI/Fava/Beancount paths, global `OFinanceAssistant` daily budget, and snapshot export. |
 
-### Install & Run
+---
+
+## 3. Quick Start (Demo Mode & Unit Tests)
+
 ```bash
+# 1. Install frontend dependencies
 npm install
-npm run dev
-```
-The workstation will start at `http://localhost:3000`.
 
-### Run Deterministic Unit Tests & Build Verification
-```bash
-npx --yes tsx --test src/utils/finance.test.ts
+# 2. Run deterministic financial math unit tests (node:test)
+npx tsx --test src/utils/finance.test.ts
+
+# 3. Start local development workstation on port 3000
+npm run dev
+
+# 4. Type-check and build production bundle
 npm run lint
 npm run build
 ```
 
 ---
 
-## 4. Switching from Demo Mode to Local Python FastAPI Backend
+## 4. Architecture & Operations Documentation
 
-By default, O-Finance runs in Demo Mode using deterministic local services:
-```env
-VITE_DEMO_MODE="true"
-VITE_API_BASE_URL="http://127.0.0.1:8000"
-VITE_FAVA_URL="http://127.0.0.1:5000"
-```
-When deploying on Kali Linux alongside the Python FastAPI backend (`docs/API_CONTRACT.md`), set `VITE_DEMO_MODE="false"` in `.env.local`. Never place banking passwords, brokerage OAuth secrets, or API keys in `VITE_` variables.
-
----
-
-## 5. Documentation Index
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Target Full-Stack Architecture (React + Tauri + FastAPI + Pydantic AI + Beancount/Fava + PostgreSQL + DuckDB).
-- [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) — REST API specification between the React Frontend and Python FastAPI Backend.
-- [`docs/AGENT_RUNTIME.md`](docs/AGENT_RUNTIME.md) — Pydantic AI Multi-Agent Runtime, Tool Permissions, and Deterministic Math Boundaries.
-- [`docs/SECURITY.md`](docs/SECURITY.md) — Read-Only Connector Policy, Credential Isolation, and Human-in-the-Loop Governance.
-- [`docs/LOCAL_DEPLOYMENT.md`](docs/LOCAL_DEPLOYMENT.md) — Kali Linux Local Deployment Guide (FastAPI, Fava, PostgreSQL, DuckDB, Ollama).
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Multi-phase engineering roadmap from Prototype to v1.0 Local Workstation.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — 6-layer system architecture, data stores, and deterministic boundary.
+- [`docs/AGENT_RUNTIME.md`](./docs/AGENT_RUNTIME.md) — `OFinanceAssistant` single-assistant Pydantic AI design, 6 Task Modes, and sequential tool execution.
+- [`docs/API_CONTRACT.md`](./docs/API_CONTRACT.md) — REST API specification including `/api/v1/assistant/*` endpoints.
+- [`docs/SECURITY.md`](./docs/SECURITY.md) — 10 security invariants, backend vault credential isolation, and read-only enforcement.
+- [`docs/LOCAL_DEPLOYMENT.md`](./docs/LOCAL_DEPLOYMENT.md) — Kali Linux local deployment guide (FastAPI, PostgreSQL, DuckDB, Beancount/Fava).
+- [`docs/ROADMAP.md`](./docs/ROADMAP.md) — Phased engineering roadmap from v0.1/v0.3 prototype to local Kali Linux production.

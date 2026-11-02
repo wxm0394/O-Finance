@@ -554,10 +554,10 @@ export const OverviewPage: React.FC = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Recent Financial & Agent Activity (Click Row to Inspect)
+                Recent Financial & Assistant Activity (Click Row to Inspect)
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Bank flows, brokerage executions, dividends, fees, Beancount postings, and Agent runs
+                Bank flows, brokerage executions, dividends, fees, Beancount postings, and OFinanceAssistant runs
               </p>
             </div>
             <button
@@ -636,10 +636,10 @@ export const OverviewPage: React.FC = () => {
                       {log.timestamp.slice(0, 10)}
                     </td>
                     <td className="py-2 px-3 whitespace-nowrap text-blue-600 dark:text-blue-400 font-medium">
-                      {log.agentName}
+                      {log.assistantName} ({log.taskMode})
                     </td>
                     <td className="py-2 px-3 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      Agent Run
+                      Assistant Run
                     </td>
                     <td className="py-2 px-3 text-slate-900 dark:text-slate-100 max-w-xs truncate">
                       {log.taskSummary}
@@ -682,7 +682,7 @@ export const OverviewPage: React.FC = () => {
                 <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
                   {selectedActivity.type === 'transaction'
                     ? `Transaction Record · ${selectedActivity.tx?.id} (DEMO)`
-                    : `Agent Execution Trace · ${selectedActivity.log?.id} (SIMULATED)`}
+                    : `OFinanceAssistant Trace · ${selectedActivity.log?.id} (SIMULATED)`}
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                   DEMO MODE · SIMULATED FINANCIAL DATA
@@ -754,8 +754,10 @@ export const OverviewPage: React.FC = () => {
               <div className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-2 font-mono bg-slate-50 dark:bg-slate-900/80 p-3 rounded border border-slate-200 dark:border-slate-800">
                   <div>
-                    <span className="text-slate-400 block text-[10px]">Agent</span>
-                    <span>{selectedActivity.log.agentName}</span>
+                    <span className="text-slate-400 block text-[10px]">Assistant & Task Mode</span>
+                    <span>
+                      {selectedActivity.log.assistantName} ({selectedActivity.log.taskMode})
+                    </span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">Timestamp</span>
@@ -785,7 +787,7 @@ export const OverviewPage: React.FC = () => {
                     }}
                     className="px-3 py-1.5 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-500"
                   >
-                    Open Agent Center
+                    Open AI Assistant Center
                   </button>
                   <button
                     type="button"

@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { formatCurrency } from '../../utils/finance';
-import { BookOpen, CheckCircle2, XCircle, ExternalLink, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  ChevronDown,
+  ChevronRight,
+  Terminal,
+  Scale,
+  FileSpreadsheet,
+} from 'lucide-react';
 
 const ACCOUNT_TREE = [
   {
@@ -57,6 +67,28 @@ const ACCOUNT_TREE = [
   },
 ];
 
+const TRIAL_BALANCE_ROWS = [
+  { account: 'Assets:Banks:Checking:USBank', debit: 64500.0, credit: 0, currency: 'USD' },
+  { account: 'Assets:Banks:Checking:UKBank (GBP 32,000)', debit: 41120.0, credit: 0, currency: 'USD eqv' },
+  { account: 'Assets:Banks:Savings:EUBank (EUR 45,000)', debit: 49140.0, credit: 0, currency: 'USD eqv' },
+  { account: 'Assets:Investments:InteractiveBrokers', debit: 340930.0, credit: 0, currency: 'USD' },
+  { account: 'Assets:Investments:Schwab', debit: 212850.0, credit: 0, currency: 'USD' },
+  { account: 'Assets:Investments:Firstrade', debit: 81170.0, credit: 0, currency: 'USD' },
+  { account: 'Assets:Investments:EUBankDepot (EUR 28,500)', debit: 31122.0, credit: 0, currency: 'USD eqv' },
+  { account: 'Liabilities:CreditCards:USBankReserve', debit: 0, credit: 3420.0, currency: 'USD' },
+  { account: 'Liabilities:CreditCards:UKSterlingCard (GBP 850)', debit: 0, credit: 1092.25, currency: 'USD eqv' },
+  { account: 'Liabilities:Loans:EUMarginLine (EUR 1,200)', debit: 0, credit: 1310.4, currency: 'USD eqv' },
+  { account: 'Income:Salary:QuantCore', debit: 0, credit: 268400.0, currency: 'USD' },
+  { account: 'Income:Dividends:MultiBrokerage', debit: 0, credit: 12979.0, currency: 'USD eqv' },
+  { account: 'Income:Interest:YieldAndTreasury', debit: 0, credit: 4851.0, currency: 'USD eqv' },
+  { account: 'Income:CapitalGains:RealizedYTD', debit: 0, credit: 7950.0, currency: 'USD' },
+  { account: 'Expenses:Housing:LeaseAndUtilities', debit: 42600.0, credit: 0, currency: 'USD eqv' },
+  { account: 'Expenses:Taxes:FederalAndWithholding', debit: 54120.0, credit: 0, currency: 'USD' },
+  { account: 'Expenses:CloudAndInfrastructure', debit: 14890.0, credit: 0, currency: 'USD' },
+  { account: 'Expenses:LivingTransportHealthcareFees', debit: 17875.0, credit: 0, currency: 'USD eqv' },
+  { account: 'Equity:OpeningBalances', debit: 0, credit: 650314.35, currency: 'USD eqv' },
+];
+
 const PIPELINE_STEPS = [
   { step: '1. Raw Transaction', desc: 'Plaid / Flex XML / PSD2 JSON' },
   { step: '2. Normalization', desc: 'UTC Timestamp & ISO Currency' },
@@ -69,6 +101,7 @@ const PIPELINE_STEPS = [
 
 export const AccountingPage: React.FC = () => {
   const {
+    accounts,
     journalEntries,
     wealthSummary,
     baseCurrency,
@@ -78,10 +111,21 @@ export const AccountingPage: React.FC = () => {
     showToast,
   } = useOFinance();
 
+  const [activeView, setActiveView] = useState<'ledger' | 'statements' | 'reconciliation'>('ledger');
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>('JE-2026-001');
   const [favaModalOpen, setFavaModalOpen] = useState(false);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFavaModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const pendingDrafts = journalEntries.filter((j) => j.status === 'Pending Approval');
+  const totalDebits = TRIAL_BALANCE_ROWS.reduce((acc, r) => acc + r.debit, 0);
+  const totalCredits = TRIAL_BALANCE_ROWS.reduce((acc, r) => acc + r.credit, 0);
 
   return (
     <div className="space-y-6">
@@ -96,7 +140,7 @@ export const AccountingPage: React.FC = () => {
           </p>
         </div>
 
-        {/* 8.3 Fava Integration Bar */}
+        {/* Fava Integration Bar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="px-3 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 text-xs font-mono flex items-center gap-2">
             <Terminal className="w-3.5 h-3.5 text-slate-400" />
@@ -116,7 +160,7 @@ export const AccountingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 8.1 Accounting Overview Metrics (Assets, Liabilities, Income, Expenses, Equity, Trial Balance) */}
+      {/* Accounting Overview Metrics (Assets, Liabilities, Income, Expenses, Equity, Trial Balance) */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 font-mono">
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
           <div className="text-[11px] text-slate-500">Total Assets ({baseCurrency})</div>
@@ -171,7 +215,38 @@ export const AccountingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 8.4 Automated Bookkeeping Workflow Pipeline */}
+      {/* Sub-Navigation Tabs for Accounting Views */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
+        <div className="flex items-center gap-2 text-xs font-mono">
+          {[
+            { id: 'ledger', label: '1. Account Hierarchy & Journal Entries', icon: BookOpen },
+            { id: 'statements', label: '2. Trial Balance, Balance Sheet & Income Statement', icon: FileSpreadsheet },
+            { id: 'reconciliation', label: `3. Reconciliation Status & Drafts (${pendingDrafts.length} Pending)`, icon: Scale },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveView(tab.id as typeof activeView)}
+                className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors ${
+                  activeView === tab.id
+                    ? 'bg-slate-900 text-white dark:bg-blue-600'
+                    : 'bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[11px] font-mono text-slate-500">
+          Beancount Double-Entry Conservation: Sum(Postings) == 0.00
+        </span>
+      </div>
+
+      {/* Automated Bookkeeping Workflow Pipeline & Pending Drafts (Always accessible or highlighted) */}
       <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -255,153 +330,355 @@ export const AccountingPage: React.FC = () => {
         )}
       </div>
 
-      {/* Main Split: 8.1 Beancount Account Tree (4 cols) + 8.2 Double-Entry Ledger View (8 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Account Hierarchy Tree */}
-        <div className="lg:col-span-4 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-blue-500" />
-              <span>Beancount Chart of Accounts</span>
-            </h2>
-            <span className="text-[11px] font-mono text-slate-400">5 Root Classes</span>
+      {/* VIEW 1: Account Hierarchy Tree + Double-Entry Journal Entries */}
+      {activeView === 'ledger' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Account Hierarchy Tree */}
+          <div className="lg:col-span-4 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-blue-500" />
+                <span>Beancount Chart of Accounts</span>
+              </h2>
+              <span className="text-[11px] font-mono text-slate-400">5 Root Classes</span>
+            </div>
+
+            <div className="space-y-3 text-xs font-mono">
+              {ACCOUNT_TREE.map((group) => (
+                <div
+                  key={group.root}
+                  className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800"
+                >
+                  <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white pb-1.5 border-b border-slate-200 dark:border-slate-800">
+                    <span>{group.root}</span>
+                    <span>{group.balanceUSD}</span>
+                  </div>
+                  <div className="mt-1.5 space-y-1 pl-2">
+                    {group.children.map((child) => (
+                      <div
+                        key={child.name}
+                        className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
+                      >
+                        <span className="truncate pr-2">{child.name}</span>
+                        <span className="text-slate-800 dark:text-slate-200 shrink-0 tabular-nums">
+                          {child.balance}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-3 text-xs font-mono">
-            {ACCOUNT_TREE.map((group) => (
-              <div
-                key={group.root}
-                className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800"
-              >
-                <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white pb-1.5 border-b border-slate-200 dark:border-slate-800">
-                  <span>{group.root}</span>
-                  <span>{group.balanceUSD}</span>
-                </div>
-                <div className="mt-1.5 space-y-1 pl-2">
-                  {group.children.map((child) => (
-                    <div
-                      key={child.name}
-                      className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
-                    >
-                      <span className="truncate pr-2">{child.name}</span>
-                      <span className="text-slate-800 dark:text-slate-200 shrink-0 tabular-nums">
-                        {child.balance}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          {/* Double-Entry Ledger View */}
+          <div className="lg:col-span-8 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Beancount Journal Entries (Click Row to Expand Postings)
+                </h2>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Every entry enforces strict double-entry conservation: Debits + Credits = 0
+                </p>
               </div>
-            ))}
+              <button
+                type="button"
+                onClick={() => showToast('Simulated bean-check: All 9 journal entries balance to 0.00.', 'success')}
+                className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-200 hover:bg-slate-200"
+              >
+                Run bean-check (Sim)
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                    <th className="py-2 pr-2 font-medium">Entry ID</th>
+                    <th className="py-2 px-2 font-medium">Date</th>
+                    <th className="py-2 px-2 font-medium">Payee & Narration</th>
+                    <th className="py-2 px-2 font-medium">Primary Account</th>
+                    <th className="py-2 px-2 font-medium text-right">Debit / Credit</th>
+                    <th className="py-2 pl-2 font-medium text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
+                  {journalEntries.map((je) => {
+                    const isExpanded = expandedEntryId === je.id;
+                    const firstPosting = je.postings[0];
+                    return (
+                      <React.Fragment key={je.id}>
+                        <tr
+                          onClick={() => setExpandedEntryId(isExpanded ? null : je.id)}
+                          className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer"
+                        >
+                          <td className="py-2.5 pr-2 font-mono text-[11px] text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              {isExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              )}
+                              <span>{je.id}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            {je.date}
+                          </td>
+                          <td className="py-2.5 px-2">
+                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                              {je.flag} "{je.payee}"
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs">
+                              {je.narration}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2 font-mono text-[11px] text-slate-600 dark:text-slate-300 truncate max-w-[180px]">
+                            {firstPosting?.account}
+                          </td>
+                          <td className="py-2.5 px-2 font-mono text-right whitespace-nowrap tabular-nums">
+                            {firstPosting
+                              ? `${formatCurrency(firstPosting.amount, firstPosting.currency, { showSign: true })} ${firstPosting.currency}`
+                              : '—'}
+                          </td>
+                          <td className="py-2.5 pl-2 font-mono text-[11px] text-right whitespace-nowrap">
+                            <span
+                              className={
+                                je.status === 'Posted'
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : je.status === 'Rejected'
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : 'text-amber-600 dark:text-amber-400 font-semibold'
+                              }
+                            >
+                              {je.status}
+                            </span>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr className="bg-slate-50/70 dark:bg-slate-900/60">
+                            <td colSpan={6} className="p-3 space-y-2">
+                              <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                                <span>Source Document: {je.sourceDocument}</span>
+                                <span>Confidence: {((je.confidence || 0.99) * 100).toFixed(0)}%</span>
+                              </div>
+                              <pre className="p-3 rounded bg-slate-950 text-emerald-400 font-mono text-xs overflow-x-auto">
+                                {je.rawBeancount}
+                              </pre>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* 8.2 Double-Entry Ledger View */}
-        <div className="lg:col-span-8 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
+      {/* VIEW 2: Trial Balance, Balance Sheet & Income Statement */}
+      {activeView === 'statements' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Trial Balance Table (7 cols) */}
+          <div className="lg:col-span-7 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Beancount Trial Balance (USD Base Equivalent · SIMULATED)
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  Verifies that total debits equal total credits across all 5 root account classes
+                </p>
+              </div>
+              <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                Residual: {(totalDebits - totalCredits).toFixed(2)} USD
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                    <th className="py-2 pr-3 font-medium">Beancount Account</th>
+                    <th className="py-2 px-3 font-medium text-right">Debit (USD)</th>
+                    <th className="py-2 px-3 font-medium text-right">Credit (USD)</th>
+                    <th className="py-2 pl-3 font-medium text-right">Basis</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-[11px]">
+                  {TRIAL_BALANCE_ROWS.map((row) => (
+                    <tr key={row.account} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="py-2 pr-3 text-slate-800 dark:text-slate-200">{row.account}</td>
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-900 dark:text-white">
+                        {row.debit > 0 ? formatCurrency(row.debit, 'USD') : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-blue-600 dark:text-blue-400">
+                        {row.credit > 0 ? formatCurrency(row.credit, 'USD') : '—'}
+                      </td>
+                      <td className="py-2 pl-3 text-right text-slate-400">{row.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 dark:border-slate-700 font-bold text-slate-900 dark:text-white">
+                    <td className="py-2.5 pr-3">TOTAL TRIAL BALANCE</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(totalDebits, 'USD')}
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(totalCredits, 'USD')}
+                    </td>
+                    <td className="py-2.5 pl-3 text-right text-emerald-600 dark:text-emerald-400">BALANCED</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* Balance Sheet & Income Statement (5 cols) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5 font-mono text-xs">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <span className="font-sans font-semibold text-sm text-slate-900 dark:text-white">
+                  Balance Sheet Snapshot (As of 2026-11-02)
+                </span>
+                <span className="text-[11px] text-slate-400">USD Base</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Cash & Bank Reserves</span>
+                <span className="tabular-nums font-semibold">$204,260.00</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Investment Holdings (4 Accounts)</span>
+                <span className="tabular-nums font-semibold">$616,572.00</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-1.5 font-bold">
+                <span>Total Assets</span>
+                <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">$820,832.00</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span className="text-slate-500">Total Credit Cards & Margin Liabilities</span>
+                <span className="text-rose-500 tabular-nums">-$5,822.65</span>
+              </div>
+              <div className="flex justify-between border-t-2 border-slate-200 dark:border-slate-700 pt-2 font-bold text-sm">
+                <span>Net Worth (Assets - Liabilities)</span>
+                <span className="text-blue-600 dark:text-blue-400 tabular-nums">$815,009.35</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5 font-mono text-xs">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <span className="font-sans font-semibold text-sm text-slate-900 dark:text-white">
+                  Income Statement (YTD Simulated)
+                </span>
+                <span className="text-[11px] text-emerald-500">56.0% Net Margin</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Salary & Advisory Compensation</span>
+                <span className="tabular-nums text-emerald-500">+$268,400.00</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Portfolio Dividends & Interest</span>
+                <span className="tabular-nums text-emerald-500">+$17,830.00</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Realized Capital Gains (YTD)</span>
+                <span className="tabular-nums text-emerald-500">+$7,950.00</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-1.5 font-bold">
+                <span>Total Gross Income</span>
+                <span className="tabular-nums">$294,180.00</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span className="text-slate-500">Taxes, Housing, Cloud & Operating Expenses</span>
+                <span className="tabular-nums text-rose-500">-$129,485.00</span>
+              </div>
+              <div className="flex justify-between border-t-2 border-slate-200 dark:border-slate-700 pt-2 font-bold text-sm">
+                <span>Net Retained Savings (YTD)</span>
+                <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+$164,695.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 3: Institution Statement vs Beancount Ledger Reconciliation */}
+      {activeView === 'reconciliation' && (
+        <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Beancount Journal Entries (Click Row to Expand Postings)
+                Multi-Institution Statement vs. Beancount Ledger Reconciliation (DEMO)
               </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Every entry enforces strict double-entry conservation: Debits + Credits = 0
+              <p className="text-[11px] text-slate-500">
+                Compares external simulated bank/brokerage statement balances against posted Beancount assertions (`balance` directives).
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => showToast('Simulated bean-check: All 9 journal entries balance to 0.00.', 'success')}
-              className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-200 hover:bg-slate-200"
-            >
-              Run bean-check (Sim)
-            </button>
+            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">
+              Posted Ledger Discrepancy: 0.00
+            </span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs font-mono">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-                  <th className="py-2 pr-2 font-medium">Entry ID</th>
-                  <th className="py-2 px-2 font-medium">Date</th>
-                  <th className="py-2 px-2 font-medium">Payee & Narration</th>
-                  <th className="py-2 px-2 font-medium">Primary Account</th>
-                  <th className="py-2 px-2 font-medium text-right">Debit / Credit</th>
-                  <th className="py-2 pl-2 font-medium text-right">Status</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                  <th className="py-2 pr-3 font-medium">Account</th>
+                  <th className="py-2 px-3 font-medium">Beancount Directive Account</th>
+                  <th className="py-2 px-3 font-medium text-right">Statement Balance</th>
+                  <th className="py-2 px-3 font-medium text-right">Beancount Posted</th>
+                  <th className="py-2 px-3 font-medium text-right">Unposted Drafts</th>
+                  <th className="py-2 pl-3 font-medium text-right">Reconciliation Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
-                {journalEntries.map((je) => {
-                  const isExpanded = expandedEntryId === je.id;
-                  const firstPosting = je.postings[0];
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-[11px]">
+                {accounts.map((acc) => {
+                  const hasUnposted = acc.id === 'acc-us-bank';
+                  const hasAnomaly = acc.id === 'acc-eu-bank';
                   return (
-                    <React.Fragment key={je.id}>
-                      <tr
-                        onClick={() => setExpandedEntryId(isExpanded ? null : je.id)}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer"
-                      >
-                        <td className="py-2.5 pr-2 font-mono text-[11px] text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                          <div className="flex items-center gap-1">
-                            {isExpanded ? (
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            ) : (
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            )}
-                            <span>{je.id}</span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                          {je.date}
-                        </td>
-                        <td className="py-2.5 px-2">
-                          <div className="font-medium text-slate-900 dark:text-slate-100">
-                            {je.flag} "{je.payee}"
-                          </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs">
-                            {je.narration}
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-2 font-mono text-[11px] text-slate-600 dark:text-slate-300 truncate max-w-[180px]">
-                          {firstPosting?.account}
-                        </td>
-                        <td className="py-2.5 px-2 font-mono text-right whitespace-nowrap tabular-nums">
-                          {firstPosting
-                            ? `${formatCurrency(firstPosting.amount, firstPosting.currency, { showSign: true })} ${firstPosting.currency}`
-                            : '—'}
-                        </td>
-                        <td className="py-2.5 pl-2 font-mono text-[11px] text-right whitespace-nowrap">
-                          <span
-                            className={
-                              je.status === 'Posted'
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : je.status === 'Rejected'
-                                ? 'text-rose-600 dark:text-rose-400'
-                                : 'text-amber-600 dark:text-amber-400 font-semibold'
-                            }
-                          >
-                            {je.status}
-                          </span>
-                        </td>
-                      </tr>
-
-                      {isExpanded && (
-                        <tr className="bg-slate-50/70 dark:bg-slate-900/60">
-                          <td colSpan={6} className="p-3 space-y-2">
-                            <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
-                              <span>Source Document: {je.sourceDocument}</span>
-                              <span>Confidence: {((je.confidence || 0.99) * 100).toFixed(0)}%</span>
-                            </div>
-                            <pre className="p-3 rounded bg-slate-950 text-emerald-400 font-mono text-xs overflow-x-auto">
-                              {je.rawBeancount}
-                            </pre>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                    <tr key={acc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="py-2.5 pr-3 font-sans font-medium text-slate-900 dark:text-white">
+                        {acc.institution.replace(' (Simulated)', '')} ({acc.currency})
+                      </td>
+                      <td className="py-2.5 px-3 text-blue-600 dark:text-blue-400">
+                        Assets:{acc.accountType}:{acc.institution.replace(/[^a-zA-Z]/g, '')}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums">
+                        {formatCurrency(acc.currentBalance, acc.currency)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums">
+                        {formatCurrency(acc.currentBalance, acc.currency)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums">
+                        {hasUnposted ? '2 Drafts ($2,120.00)' : hasAnomaly ? '1 Fee Flag (€45.00)' : '0 Drafts'}
+                      </td>
+                      <td className="py-2.5 pl-3 text-right">
+                        <span
+                          className={
+                            hasUnposted || hasAnomaly
+                              ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                              : 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                          }
+                        >
+                          {hasUnposted
+                            ? 'Pending Draft Approval'
+                            : hasAnomaly
+                            ? 'Fee Anomaly Flagged'
+                            : 'Reconciled (0.00 Diff)'}
+                        </span>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Fava Placeholder Integration Modal */}
       {favaModalOpen && (

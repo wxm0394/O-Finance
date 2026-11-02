@@ -282,7 +282,7 @@ export const OverviewPage: React.FC = () => {
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '12px', color: '#F8FAFC' }}
-                  formatter={(val: number) => formatCurrency(val, baseCurrency)}
+                  formatter={(val: unknown) => formatCurrency(Number(val) || 0, baseCurrency)}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Area
@@ -337,7 +337,7 @@ export const OverviewPage: React.FC = () => {
                 </Pie>
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '12px', color: '#F8FAFC' }}
-                  formatter={(val: number) => formatCurrency(val, baseCurrency)}
+                  formatter={(val: unknown) => formatCurrency(Number(val) || 0, baseCurrency)}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -377,7 +377,7 @@ export const OverviewPage: React.FC = () => {
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '12px', color: '#F8FAFC' }}
-                  formatter={(val: number) => formatCurrency(val, baseCurrency)}
+                  formatter={(val: unknown) => formatCurrency(Number(val) || 0, baseCurrency)}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Bar dataKey="Inflow" fill="#10B981" radius={[2, 2, 0, 0]} />
@@ -405,7 +405,7 @@ export const OverviewPage: React.FC = () => {
                 <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} tickFormatter={(v) => `${v}%`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '12px', color: '#F8FAFC' }}
-                  formatter={(val: number) => `${val}%`}
+                  formatter={(val: unknown) => `${val}%`}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Line

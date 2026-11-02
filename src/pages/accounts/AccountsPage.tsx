@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { ConnectorConfig } from '../../types';
 import { convertCurrency, formatCurrency } from '../../utils/finance';
@@ -22,6 +22,14 @@ export const AccountsPage: React.FC = () => {
 
   const [authModalConnector, setAuthModalConnector] = useState<ConnectorConfig | null>(null);
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAuthModalConnector(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const filteredAccounts = accounts.filter(
     (a) => regionFilter === 'ALL' || a.region === regionFilter
@@ -152,12 +160,20 @@ export const AccountsPage: React.FC = () => {
                     <td className="py-2.5 px-2 font-mono text-[11px] whitespace-nowrap">
                       <span
                         className={
-                          acc.connectionStatus === 'Not Connected'
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-emerald-600 dark:text-emerald-400'
+                          isSyncing
+                            ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                            : acc.connectionStatus === 'Connected (Simulated)'
+                            ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                            : acc.connectionStatus === 'Authorization Required' ||
+                              acc.connectionStatus === 'Sync Failed'
+                            ? 'text-rose-600 dark:text-rose-400 font-semibold'
+                            : acc.connectionStatus === 'Stale Data' ||
+                              acc.connectionStatus === 'Not Connected'
+                            ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                            : 'text-slate-600 dark:text-slate-300'
                         }
                       >
-                        {acc.connectionStatus}
+                        {isSyncing ? 'Syncing (Sim)' : acc.connectionStatus}
                       </span>
                     </td>
                     <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -242,26 +258,35 @@ export const AccountsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setAuthModalConnector(conn)}
-                      className="flex-1 py-1.5 px-3 rounded bg-slate-900 dark:bg-blue-600 text-white text-xs font-medium hover:opacity-90 flex items-center justify-center gap-1.5"
+                      className="flex-1 py-1.5 px-2.5 rounded bg-slate-900 dark:bg-blue-600 text-white text-xs font-medium hover:opacity-90 flex items-center justify-center gap-1.5"
                     >
                       <Link2 className="w-3.5 h-3.5" />
-                      <span>Connect Account (DEMO)</span>
+                      <span>Authorize (Sim)</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => toggleConnectorState(conn.id)}
-                      className="flex-1 py-1.5 px-3 rounded bg-rose-600/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-medium hover:bg-rose-600/20 flex items-center justify-center gap-1.5"
+                      className="flex-1 py-1.5 px-2.5 rounded bg-rose-600/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-medium hover:bg-rose-600/20 flex items-center justify-center gap-1.5"
                     >
                       <Unlink className="w-3.5 h-3.5" />
-                      <span>Disconnect (Sim)</span>
+                      <span>Cycle State (Sim)</span>
                     </button>
                   )}
 
                   <button
                     type="button"
+                    onClick={() => toggleConnectorState(conn.id)}
+                    title="Cycle simulated connector state (Connected / Not Connected / Auth Required / Sync Failed / Stale)"
+                    className="py-1.5 px-2.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-mono"
+                  >
+                    State
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => triggerSimulatedSync(conn.institution)}
-                    className="py-1.5 px-3 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-mono"
+                    className="py-1.5 px-2.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-mono"
                   >
                     Sync Now
                   </button>

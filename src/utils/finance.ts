@@ -182,8 +182,9 @@ export function calculateWealthSummary(
 }
 
 /**
- * Deterministic Cash Flow calculation that excludes internal transfers (`Transfer` or `transferGroupId`)
- * so cross-account transfers are never double-counted as income or expense.
+ * Deterministic Cash Flow calculation that:
+ * 1. Excludes internal transfers (`Transfer` or `transferGroupId`) so cross-account transfers are never double-counted.
+ * 2. Distinguishes confirmed posted transactions from pending/unconfirmed items so pending transactions are never treated as confirmed posted cash flows.
  */
 export function calculateCashFlowTotals(
   transactions: TransactionRecord[],
@@ -192,11 +193,15 @@ export function calculateCashFlowTotals(
   totalInflow: number;
   totalOutflow: number;
   netCashFlow: number;
+  pendingInflow: number;
+  pendingOutflow: number;
   excludedTransferVolume: number;
   transferPairCount: number;
 } {
   let totalInflow = 0;
   let totalOutflow = 0;
+  let pendingInflow = 0;
+  let pendingOutflow = 0;
   let excludedTransferVolume = 0;
   const transferGroups = new Set<string>();
 
@@ -215,10 +220,20 @@ export function calculateCashFlowTotals(
       continue;
     }
 
+    const isConfirmedPosted = tx.status === 'Settled' && tx.ledgerStatus === 'Posted';
+
     if (tx.amount > 0) {
-      totalInflow += absAmountInBase;
+      if (isConfirmedPosted) {
+        totalInflow += absAmountInBase;
+      } else {
+        pendingInflow += absAmountInBase;
+      }
     } else if (tx.amount < 0) {
-      totalOutflow += absAmountInBase;
+      if (isConfirmedPosted) {
+        totalOutflow += absAmountInBase;
+      } else {
+        pendingOutflow += absAmountInBase;
+      }
     }
   }
 
@@ -226,6 +241,8 @@ export function calculateCashFlowTotals(
     totalInflow: round2(totalInflow),
     totalOutflow: round2(totalOutflow),
     netCashFlow: round2(totalInflow - totalOutflow),
+    pendingInflow: round2(pendingInflow),
+    pendingOutflow: round2(pendingOutflow),
     excludedTransferVolume: round2(excludedTransferVolume),
     transferPairCount: transferGroups.size,
   };

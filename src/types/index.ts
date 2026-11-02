@@ -2,7 +2,14 @@ export type CurrencyCode = 'USD' | 'GBP' | 'EUR';
 
 export type AccountType = 'Brokerage' | 'Checking' | 'Savings' | 'CreditCard' | 'Crypto' | 'Loan';
 
-export type ConnectionStatus = 'Demo Only' | 'Not Connected' | 'Sync Simulated' | 'Sync Failed';
+export type ConnectionStatus =
+  | 'Connected (Simulated)'
+  | 'Not Connected'
+  | 'Authorization Required'
+  | 'Syncing'
+  | 'Sync Failed'
+  | 'Stale Data'
+  | 'Demo Only';
 
 export type DataFreshness = 'Simulated Live' | 'Simulated 15m Ago' | 'Simulated 4h Ago' | 'Stale (24h+)';
 
@@ -31,7 +38,14 @@ export interface ConnectorConfig {
   plannedConnector: string;
   supportedData: string[];
   authMethod: string;
-  connectionStatus: 'Not Connected / Demo Only' | 'Simulated Connected' | 'Disconnected';
+  connectionStatus:
+    | 'Not Connected / Demo Only'
+    | 'Simulated Connected'
+    | 'Authorization Required (Sim)'
+    | 'Syncing (Sim)'
+    | 'Sync Failed (Sim)'
+    | 'Stale Data (24h+)'
+    | 'Disconnected';
   lastSyncTime: string;
   syncFrequency: string;
   permissionsScope: string;

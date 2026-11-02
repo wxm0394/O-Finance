@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -65,6 +65,17 @@ export const WorkstationShell: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+        setNotificationsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const pendingApprovalsCount = approvalTasks.filter((t) => t.status === 'Pending').length;
 
   const currentNav =
@@ -120,7 +131,7 @@ export const WorkstationShell: React.FC = () => {
                 O-Finance
               </span>
               <span className="hidden xl:inline-block ml-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
-                v0.1 · Local Workstation
+                v0.2 · Local Workstation
               </span>
             </div>
           </button>

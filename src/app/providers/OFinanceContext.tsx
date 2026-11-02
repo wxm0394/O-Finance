@@ -280,7 +280,7 @@ export const OFinanceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return {
               ...acc,
               lastSync: nowStr,
-              connectionStatus: 'Sync Simulated',
+              connectionStatus: 'Connected (Simulated)',
               dataFreshness: 'Simulated Live',
             };
           }
@@ -320,20 +320,25 @@ export const OFinanceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const toggleConnectorState = (connectorId: string) => {
+    const cycleOrder: ConnectorConfig['connectionStatus'][] = [
+      'Simulated Connected',
+      'Not Connected / Demo Only',
+      'Authorization Required (Sim)',
+      'Sync Failed (Sim)',
+      'Stale Data (24h+)',
+    ];
     setConnectors((prev) =>
       prev.map((c) => {
         if (c.id !== connectorId) return c;
-        const nextStatus =
-          c.connectionStatus === 'Simulated Connected'
-            ? 'Not Connected / Demo Only'
-            : 'Simulated Connected';
+        const idx = cycleOrder.indexOf(c.connectionStatus);
+        const nextStatus = cycleOrder[(idx + 1) % cycleOrder.length];
         appendAuditLog({
           category: 'Account Sync',
           actor: 'Local Workstation Operator',
           action: `Changed connector status to "${nextStatus}"`,
           target: `${c.institution} (${c.plannedConnector})`,
           severity: 'Info',
-          details: 'DEMO Mode simulated authorization toggle. Zero real credentials transmitted.',
+          details: 'DEMO Mode simulated authorization/status cycle. Zero real credentials transmitted.',
         });
         showToast(
           `${c.institution}: ${nextStatus} (DEMO SIMULATION ONLY)`,
@@ -536,7 +541,7 @@ export const OFinanceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             stepTitle: 'Inspect Multi-Institution Holdings & Cash Balances',
             toolCalled: 'PortfolioService.getWealthSummary(base="USD")',
             status: 'Completed (Simulated)',
-            finding: 'Total Net Worth = $814,529.30 USD ($204,260.00 Cash + $616,572.00 Investments - $5,822.65 Liabilities across 6 accounts).',
+            finding: 'Total Net Worth = $815,009.35 USD ($204,260.00 Cash + $616,572.00 Investments - $5,822.65 Liabilities across 6 accounts).',
           },
           {
             agentId: 'risk',
@@ -548,7 +553,7 @@ export const OFinanceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           },
         ],
         structuredMetrics: [
-          { label: 'Total Net Worth (USD)', value: '$814,529.30', delta: 'SIMULATED' },
+          { label: 'Total Net Worth (USD)', value: '$815,009.35', delta: 'SIMULATED' },
           { label: 'Total Investments', value: '$616,572.00', delta: '17 Holdings' },
           { label: 'Total Cash Reserves', value: '$204,260.00', delta: 'USD/GBP/EUR' },
           { label: 'Active Approval Tasks', value: `${approvalTasks.filter((t) => t.status === 'Pending').length} Pending`, delta: 'Human-in-Loop' },

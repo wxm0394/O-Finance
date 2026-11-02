@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { AssetClass, PortfolioHolding } from '../../types';
 import { convertCurrency, formatCurrency, formatPercent } from '../../utils/finance';
-import { ArrowUpDown, Eye, X } from 'lucide-react';
+import { ArrowUpDown, Eye, X, PieChart, DollarSign, TrendingUp } from 'lucide-react';
 
 const ASSET_CLASSES: AssetClass[] = [
   'US Equities',
@@ -15,8 +15,20 @@ const ASSET_CLASSES: AssetClass[] = [
   'Other Assets',
 ];
 
+const DIVIDEND_HISTORY_YTD = [
+  { id: 'DIV-2026-14', exDate: '2026-10-25', payDate: '2026-10-29', symbol: 'SCHD', security: 'Schwab US Dividend Equity ETF', account: 'Charles Schwab', grossAmount: 362.64, withholdingTax: 0.0, netAmount: 362.64, currency: 'USD', ledgerAccount: 'Income:Dividends:Schwab:SCHD' },
+  { id: 'DIV-2026-13', exDate: '2026-10-18', payDate: '2026-10-22', symbol: 'TSM', security: 'Taiwan Semiconductor ADR', account: 'Firstrade', grossAmount: 340.0, withholdingTax: 71.4, netAmount: 268.6, currency: 'USD', ledgerAccount: 'Income:Dividends:Firstrade:TSM' },
+  { id: 'DIV-2026-12', exDate: '2026-10-01', payDate: '2026-10-15', symbol: 'O', security: 'Realty Income Corp REIT', account: 'Charles Schwab', grossAmount: 269.85, withholdingTax: 0.0, netAmount: 269.85, currency: 'USD', ledgerAccount: 'Income:Dividends:Schwab:O' },
+  { id: 'DIV-2026-11', exDate: '2026-10-01', payDate: '2026-10-07', symbol: 'SGOV', security: 'iShares 0-3 Month Treasury Bond ETF', account: 'Charles Schwab', grossAmount: 132.0, withholdingTax: 0.0, netAmount: 132.0, currency: 'USD', ledgerAccount: 'Income:Interest:Treasury:SGOV' },
+  { id: 'DIV-2026-10', exDate: '2026-09-28', payDate: '2026-10-02', symbol: 'VOO', security: 'Vanguard S&P 500 ETF', account: 'Charles Schwab', grossAmount: 245.0, withholdingTax: 0.0, netAmount: 245.0, currency: 'USD', ledgerAccount: 'Income:Dividends:Schwab:VOO' },
+  { id: 'DIV-2026-09', exDate: '2026-09-15', payDate: '2026-09-24', symbol: 'TLT', security: 'iShares 20+ Year Treasury Bond ETF', account: 'Interactive Brokers', grossAmount: 295.0, withholdingTax: 0.0, netAmount: 295.0, currency: 'USD', ledgerAccount: 'Income:Dividends:IBKR:TLT' },
+  { id: 'DIV-2026-08', exDate: '2026-08-21', payDate: '2026-09-12', symbol: 'MSFT', security: 'Microsoft Corp.', account: 'Interactive Brokers', grossAmount: 420.0, withholdingTax: 0.0, netAmount: 420.0, currency: 'USD', ledgerAccount: 'Income:Dividends:IBKR:MSFT' },
+  { id: 'DIV-2026-07', exDate: '2026-08-10', payDate: '2026-08-16', symbol: 'AAPL', security: 'Apple Inc.', account: 'Interactive Brokers', grossAmount: 190.0, withholdingTax: 0.0, netAmount: 190.0, currency: 'USD', ledgerAccount: 'Income:Dividends:IBKR:AAPL' },
+  { id: 'DIV-2026-06', exDate: '2026-05-16', payDate: '2026-05-21', symbol: 'SAP.DE', security: 'SAP SE (XETRA)', account: 'European Bank Depot', grossAmount: 220.0, withholdingTax: 58.03, netAmount: 161.97, currency: 'EUR', ledgerAccount: 'Income:Dividends:EUBank:SAP' },
+];
+
 export const PortfolioPage: React.FC = () => {
-  const { holdings, wealthSummary, baseCurrency } = useOFinance();
+  const { holdings, wealthSummary, netWorthHistory, baseCurrency } = useOFinance();
 
   const [accountFilter, setAccountFilter] = useState('ALL');
   const [marketFilter, setMarketFilter] = useState('ALL');
@@ -24,6 +36,15 @@ export const PortfolioPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<'marketValue' | 'returnPct' | 'unrealizedPnL'>('marketValue');
   const [sortDesc, setSortDesc] = useState(true);
   const [selectedHolding, setSelectedHolding] = useState<PortfolioHolding | null>(null);
+  const [analyticsTab, setAnalyticsTab] = useState<'risk' | 'dividends' | 'performance'>('risk');
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedHolding(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const filteredHoldings = useMemo(() => {
     return holdings
@@ -73,7 +94,7 @@ export const PortfolioPage: React.FC = () => {
     };
   }, [holdings, baseCurrency]);
 
-  // Exposure breakdowns (Sector, Country, Asset Class, Top 10 Concentration)
+  // Exposure breakdowns (Sector, Country)
   const sectorExposure = useMemo(() => {
     const map: Record<string, number> = {};
     for (const h of holdings) {
@@ -106,6 +127,20 @@ export const PortfolioPage: React.FC = () => {
       .sort((a, b) => b.pct - a.pct);
   }, [holdings, portfolioMetrics.totalMarketVal, baseCurrency]);
 
+  const currencyExposure = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const h of holdings) {
+      const val = convertCurrency(h.marketValue, h.currency, baseCurrency);
+      map[h.currency] = (map[h.currency] || 0) + val;
+    }
+    const total = portfolioMetrics.totalMarketVal || 1;
+    return Object.entries(map).map(([ccy, val]) => ({
+      ccy,
+      val,
+      pct: Number(((val / total) * 100).toFixed(2)),
+    }));
+  }, [holdings, portfolioMetrics.totalMarketVal, baseCurrency]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -123,7 +158,7 @@ export const PortfolioPage: React.FC = () => {
         </span>
       </div>
 
-      {/* 9.1 Portfolio Summary Strip */}
+      {/* Portfolio Summary Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 font-mono">
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
           <div className="text-[11px] text-slate-500">Total Portfolio Value</div>
@@ -255,7 +290,7 @@ export const PortfolioPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 9.2 Holdings Table */}
+      {/* Holdings Table */}
       <div className="rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -346,134 +381,303 @@ export const PortfolioPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 9.4 Risk, Concentration & Exposure Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Sector & Country Exposure (5 cols) */}
-        <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-            Sector & Country Exposure (Simulated)
-          </h2>
+      {/* Sub-Navigation for Deep Portfolio Analytics (Risk/Exposure, Dividend History, Historical Performance) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
+        <div className="flex items-center gap-2 text-xs font-mono">
+          {[
+            { id: 'risk', label: '1. Concentration Risk, Sector & Currency Exposure', icon: PieChart },
+            { id: 'dividends', label: `2. Dividend Distribution History & Withholding Tax (${DIVIDEND_HISTORY_YTD.length})`, icon: DollarSign },
+            { id: 'performance', label: '3. Historical Performance & Benchmark Attribution (12M)', icon: TrendingUp },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setAnalyticsTab(tab.id as typeof analyticsTab)}
+                className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors ${
+                  analyticsTab === tab.id
+                    ? 'bg-slate-900 text-white dark:bg-blue-600'
+                    : 'bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[11px] font-mono text-slate-500">
+          Deterministic Portfolio Analytics · Base: {baseCurrency}
+        </span>
+      </div>
 
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sectorExposure.slice(0, 6)} layout="vertical" margin={{ left: 10, right: 16 }}>
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#94A3B8' }} unit="%" />
-                <YAxis dataKey="name" type="category" width={135} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '11px', color: '#F8FAFC' }}
-                  formatter={(val: number) => `${val}%`}
-                />
-                <Bar dataKey="pct" fill="#3B82F6" radius={[0, 3, 3, 0]}>
-                  {sectorExposure.slice(0, 6).map((entry, idx) => (
-                    <Cell key={idx} fill={entry.pct > 40 ? '#F59E0B' : '#3B82F6'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* TAB 1: Risk, Concentration & Exposure Analytics */}
+      {analyticsTab === 'risk' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Sector & Country Exposure (5 cols) */}
+          <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-4">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+              Sector & Country Exposure (Simulated)
+            </h2>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs font-mono">
-            <div className="text-[11px] font-semibold text-slate-400">Geographic Exposure</div>
-            {countryExposure.map((c) => (
-              <div key={c.name} className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-300">{c.name}</span>
-                <span className="tabular-nums">
-                  {formatCurrency(c.val, baseCurrency, { compact: true })} ({c.pct}%)
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sectorExposure.slice(0, 6)} layout="vertical" margin={{ left: 10, right: 16 }}>
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#94A3B8' }} unit="%" />
+                  <YAxis dataKey="name" type="category" width={135} tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '11px', color: '#F8FAFC' }}
+                    formatter={(val: unknown) => `${val}%`}
+                  />
+                  <Bar dataKey="pct" fill="#3B82F6" radius={[0, 3, 3, 0]}>
+                    {sectorExposure.slice(0, 6).map((entry, idx) => (
+                      <Cell key={idx} fill={entry.pct > 40 ? '#F59E0B' : '#3B82F6'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs font-mono">
+              <div className="text-[11px] font-semibold text-slate-400">Geographic & Currency Exposure</div>
+              {countryExposure.map((c) => (
+                <div key={c.name} className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600 dark:text-slate-300">{c.name}</span>
+                  <span className="tabular-nums">
+                    {formatCurrency(c.val, baseCurrency, { compact: true })} ({c.pct}%)
+                  </span>
+                </div>
+              ))}
+              <div className="pt-1.5 mt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-blue-500">
+                <span>Holdings Currency Split:</span>
+                <span>
+                  {currencyExposure.map((ce) => `${ce.ccy} ${ce.pct}%`).join(' · ')}
                 </span>
               </div>
-            ))}
+            </div>
+          </div>
+
+          {/* Top 10 Holdings Concentration (4 cols) */}
+          <div className="lg:col-span-4 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Individual Position Concentration (Top 10)
+              </h2>
+              <span className="text-[11px] font-mono text-amber-500">Policy Cap: 12.0%</span>
+            </div>
+
+            <div className="space-y-2 text-xs font-mono">
+              {holdings
+                .slice()
+                .sort(
+                  (a, b) =>
+                    convertCurrency(b.marketValue, b.currency, baseCurrency) -
+                    convertCurrency(a.marketValue, a.currency, baseCurrency)
+                )
+                .slice(0, 10)
+                .map((h, i) => {
+                  const valBase = convertCurrency(h.marketValue, h.currency, baseCurrency);
+                  const weight = ((valBase / portfolioMetrics.totalMarketVal) * 100).toFixed(2);
+                  const isOverCap = Number(weight) > 12.0;
+                  return (
+                    <div key={h.id} className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-700 dark:text-slate-300 truncate">
+                        {i + 1}. <strong>{h.symbol}</strong> ({h.institution.split(' ')[0]})
+                      </span>
+                      <span
+                        className={`tabular-nums ${
+                          isOverCap
+                            ? 'text-amber-600 dark:text-amber-400 font-bold'
+                            : 'text-slate-900 dark:text-slate-100'
+                        }`}
+                      >
+                        {weight}% {isOverCap ? '(!)' : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Risk Telemetry & Correlation Overview (3 cols) */}
+          <div className="lg:col-span-3 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Risk & Correlation Metrics (SIMULATED)
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                252-Day Historical Risk Estimates
+              </p>
+            </div>
+
+            <div className="space-y-2.5 font-mono text-xs">
+              <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
+                <span className="text-slate-500">Portfolio Volatility</span>
+                <span className="font-bold">11.40% ann.</span>
+              </div>
+              <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
+                <span className="text-slate-500">Maximum Drawdown</span>
+                <span className="font-bold text-rose-500">-4.82% (12M)</span>
+              </div>
+              <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
+                <span className="text-slate-500">Sharpe Ratio (Rf=4.5%)</span>
+                <span className="font-bold text-emerald-500">1.74</span>
+              </div>
+              <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
+                <span className="text-slate-500">Beta vs S&P 500</span>
+                <span className="font-bold">0.84</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 text-[11px] font-mono space-y-1">
+              <div className="text-slate-400 font-semibold">Pairwise Correlation (Sim)</div>
+              <div className="flex justify-between">
+                <span>NVDA ↔ TSM:</span>
+                <span className="text-amber-500">+0.78 (High)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>VOO ↔ TLT:</span>
+                <span className="text-emerald-500">-0.31 (Diversifier)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>VOO ↔ GLD:</span>
+                <span className="text-blue-400">+0.08 (Uncorrelated)</span>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Top 10 Holdings Concentration (4 cols) */}
-        <div className="lg:col-span-4 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Individual Position Concentration (Top 10)
-            </h2>
-            <span className="text-[11px] font-mono text-amber-500">Policy Cap: 12.0%</span>
+      {/* TAB 2: Dividend Distribution History & Withholding Tax Ledger */}
+      {analyticsTab === 'dividends' && (
+        <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Dividend Distribution & Foreign Tax Withholding Ledger (YTD Simulated)
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Tracks gross cash distributions, foreign ADR/XETRA withholding taxes, and net cash credited across all 4 investment accounts.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+              YTD Total Dividends ({baseCurrency}): {formatCurrency(portfolioMetrics.totalDividends, baseCurrency)}
+            </span>
           </div>
 
-          <div className="space-y-2 text-xs font-mono">
-            {holdings
-              .slice()
-              .sort(
-                (a, b) =>
-                  convertCurrency(b.marketValue, b.currency, baseCurrency) -
-                  convertCurrency(a.marketValue, a.currency, baseCurrency)
-              )
-              .slice(0, 10)
-              .map((h, i) => {
-                const valBase = convertCurrency(h.marketValue, h.currency, baseCurrency);
-                const weight = ((valBase / portfolioMetrics.totalMarketVal) * 100).toFixed(2);
-                const isOverCap = Number(weight) > 12.0;
-                return (
-                  <div key={h.id} className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-700 dark:text-slate-300 truncate">
-                      {i + 1}. <strong>{h.symbol}</strong> ({h.institution.split(' ')[0]})
-                    </span>
-                    <span
-                      className={`tabular-nums ${
-                        isOverCap
-                          ? 'text-amber-600 dark:text-amber-400 font-bold'
-                          : 'text-slate-900 dark:text-slate-100'
-                      }`}
-                    >
-                      {weight}% {isOverCap ? '(!)' : ''}
-                    </span>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-
-        {/* Risk Telemetry & Correlation Overview (3 cols) */}
-        <div className="lg:col-span-3 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Risk & Correlation Metrics (SIMULATED)
-            </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              252-Day Historical Risk Estimates
-            </p>
-          </div>
-
-          <div className="space-y-2.5 font-mono text-xs">
-            <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
-              <span className="text-slate-500">Portfolio Volatility</span>
-              <span className="font-bold">11.40% ann.</span>
-            </div>
-            <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
-              <span className="text-slate-500">Maximum Drawdown</span>
-              <span className="font-bold text-rose-500">-4.82% (12M)</span>
-            </div>
-            <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
-              <span className="text-slate-500">Sharpe Ratio (Rf=4.5%)</span>
-              <span className="font-bold text-emerald-500">1.74</span>
-            </div>
-            <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex justify-between">
-              <span className="text-slate-500">Beta vs S&P 500</span>
-              <span className="font-bold">0.84</span>
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 text-[11px] font-mono space-y-1">
-            <div className="text-slate-400 font-semibold">Pairwise Correlation (Sim)</div>
-            <div className="flex justify-between">
-              <span>NVDA ↔ TSM:</span>
-              <span className="text-amber-500">+0.78 (High)</span>
-            </div>
-            <div className="flex justify-between">
-              <span>VOO ↔ TLT:</span>
-              <span className="text-emerald-500">-0.31 (Diversifier)</span>
-            </div>
-            <div className="flex justify-between">
-              <span>VOO ↔ GLD:</span>
-              <span className="text-blue-400">+0.08 (Uncorrelated)</span>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs font-mono">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                  <th className="py-2 pr-3 font-medium">Dist ID</th>
+                  <th className="py-2 px-3 font-medium">Ex-Date / Pay Date</th>
+                  <th className="py-2 px-3 font-medium">Symbol & Security</th>
+                  <th className="py-2 px-3 font-medium">Account</th>
+                  <th className="py-2 px-3 font-medium text-right">Gross Div</th>
+                  <th className="py-2 px-3 font-medium text-right">Tax Withheld</th>
+                  <th className="py-2 px-3 font-medium text-right">Net Cash</th>
+                  <th className="py-2 pl-3 font-medium">Beancount Income Account</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-[11px]">
+                {DIVIDEND_HISTORY_YTD.map((d) => (
+                  <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <td className="py-2.5 pr-3 text-blue-600 dark:text-blue-400 font-bold">{d.id}</td>
+                    <td className="py-2.5 px-3 text-slate-500">
+                      {d.exDate} → {d.payDate}
+                    </td>
+                    <td className="py-2.5 px-3 font-sans">
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{d.symbol}</span> ·{' '}
+                      <span className="text-slate-600 dark:text-slate-300">{d.security}</span>
+                    </td>
+                    <td className="py-2.5 px-3 font-sans text-slate-600 dark:text-slate-300">{d.account}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums">
+                      {formatCurrency(d.grossAmount, d.currency as 'USD' | 'EUR')} {d.currency}
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums text-rose-500">
+                      {d.withholdingTax > 0
+                        ? `-${formatCurrency(d.withholdingTax, d.currency as 'USD' | 'EUR')}`
+                        : '0.00'}
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-bold text-emerald-600 dark:text-emerald-400">
+                      +{formatCurrency(d.netAmount, d.currency as 'USD' | 'EUR')} {d.currency}
+                    </td>
+                    <td className="py-2.5 pl-3 text-slate-500">{d.ledgerAccount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* TAB 3: 12-Month Historical Performance & Benchmark Attribution */}
+      {analyticsTab === 'performance' && (
+        <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                12-Month Historical Portfolio Performance & Benchmark Attribution (SIMULATED)
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Deterministic monthly progression of Investment Value, Cash Reserves, Cumulative Portfolio Return %, and Alpha vs. S&P 500 & Global 60/40.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+              12M Cumulative Portfolio Return: +24.80% (vs S&P 500 +18.90%)
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs font-mono">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                  <th className="py-2 pr-3 font-medium">Month</th>
+                  <th className="py-2 px-3 font-medium text-right">Investments (USD)</th>
+                  <th className="py-2 px-3 font-medium text-right">Cash (USD)</th>
+                  <th className="py-2 px-3 font-medium text-right">Net Worth (USD)</th>
+                  <th className="py-2 px-3 font-medium text-right">Cum. Portfolio %</th>
+                  <th className="py-2 px-3 font-medium text-right">S&P 500 %</th>
+                  <th className="py-2 px-3 font-medium text-right">Global 60/40 %</th>
+                  <th className="py-2 pl-3 font-medium text-right">Active Alpha vs S&P</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-[11px]">
+                {netWorthHistory.map((pt) => {
+                  const alpha = Number((pt.portfolioReturnPct - pt.benchmarkReturnPct).toFixed(2));
+                  return (
+                    <tr key={pt.date} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="py-2 pr-3 font-bold text-slate-800 dark:text-slate-200">{pt.label} ({pt.date})</td>
+                      <td className="py-2 px-3 text-right tabular-nums text-blue-600 dark:text-blue-400">
+                        {formatCurrency(pt.investmentsUSD, 'USD')}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums">
+                        {formatCurrency(pt.cashUSD, 'USD')}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums font-bold text-slate-900 dark:text-white">
+                        {formatCurrency(pt.netWorthUSD, 'USD')}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-semibold">
+                        {formatPercent(pt.portfolioReturnPct)}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-500">
+                        {formatPercent(pt.benchmarkReturnPct)}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-500">
+                        {formatPercent(Number((pt.benchmarkReturnPct * 0.85).toFixed(2)))}
+                      </td>
+                      <td className="py-2 pl-3 text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatPercent(alpha)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Holding Lot & Change History Modal */}
       {selectedHolding && (

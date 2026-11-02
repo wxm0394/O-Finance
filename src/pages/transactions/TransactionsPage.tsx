@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { TransactionRecord, TransactionType } from '../../types';
 import { calculateCashFlowTotals, formatCurrency } from '../../utils/finance';
-import { Search, Link2, Eye, ArrowUpDown, X, BookOpen } from 'lucide-react';
+import { Search, Link2, Eye, ArrowUpDown, X, BookOpen, RotateCcw } from 'lucide-react';
 
 const TX_TYPES: TransactionType[] = [
   'Deposit',
@@ -36,6 +36,24 @@ export const TransactionsPage: React.FC = () => {
   const pageSize = 12;
 
   const [selectedTx, setSelectedTx] = useState<TransactionRecord | null>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedTx(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setAccountFilter('ALL');
+    setCurrencyFilter('ALL');
+    setTypeFilter('ALL');
+    setDirectionFilter('ALL');
+    setLedgerStatusFilter('ALL');
+    setCurrentPage(1);
+  };
 
   const filteredTransactions = useMemo(() => {
     return transactions
@@ -101,23 +119,30 @@ export const TransactionsPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Summary Metrics Strip */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-          <div className="px-3 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-            <span className="text-slate-400 mr-2">Inflow ({baseCurrency}):</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+        {/* Summary Metrics Strip (Confirmed Posted vs Pending/Unconfirmed) */}
+        <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+          <div className="px-2.5 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
+            <span className="text-slate-400 mr-1.5">Posted Inflow ({baseCurrency}):</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">
               {formatCurrency(cashFlowSummary.totalInflow, baseCurrency, { showSign: true })}
             </span>
           </div>
-          <div className="px-3 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-            <span className="text-slate-400 mr-2">Outflow ({baseCurrency}):</span>
-            <span className="text-rose-600 dark:text-rose-400 font-semibold">
+          <div className="px-2.5 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
+            <span className="text-slate-400 mr-1.5">Posted Outflow ({baseCurrency}):</span>
+            <span className="text-rose-600 dark:text-rose-400 font-semibold tabular-nums">
               -{formatCurrency(cashFlowSummary.totalOutflow, baseCurrency)}
             </span>
           </div>
-          <div className="px-3 py-1.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300">
+          {(cashFlowSummary.pendingOutflow > 0 || cashFlowSummary.pendingInflow > 0) && (
+            <div className="px-2.5 py-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 tabular-nums">
+              <span>
+                Unconfirmed / Pending: -{formatCurrency(cashFlowSummary.pendingOutflow, baseCurrency)} (Excluded from Posted)
+              </span>
+            </div>
+          )}
+          <div className="px-2.5 py-1.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 tabular-nums">
             <span>
-              Internal Transfers Excluded: {formatCurrency(cashFlowSummary.excludedTransferVolume, baseCurrency)} ({cashFlowSummary.transferPairCount} Pairs)
+              Transfers Excluded: {formatCurrency(cashFlowSummary.excludedTransferVolume, baseCurrency)} ({cashFlowSummary.transferPairCount} Pairs)
             </span>
           </div>
         </div>
@@ -220,6 +245,15 @@ export const TransactionsPage: React.FC = () => {
             <option value="Pending Approval">Pending Approval</option>
             <option value="Anomaly Flagged">Anomaly Flagged</option>
           </select>
+
+          <button
+            type="button"
+            onClick={resetFilters}
+            title="Reset all transaction filters"
+            className="px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -273,7 +307,21 @@ export const TransactionsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
-              {paginatedTx.map((tx) => (
+              {paginatedTx.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-slate-500 dark:text-slate-400">
+                    No transactions match the active filter criteria.{' '}
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="text-blue-600 dark:text-blue-400 underline font-medium ml-1"
+                    >
+                      Reset Filters
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                paginatedTx.map((tx) => (
                 <tr
                   key={tx.id}
                   onClick={() => setSelectedTx(tx)}
@@ -350,7 +398,8 @@ export const TransactionsPage: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

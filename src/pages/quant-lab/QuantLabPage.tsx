@@ -242,10 +242,27 @@ export const QuantLabPage: React.FC = () => {
               />
             </div>
 
-            <div className="sm:col-span-3 flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-              <span className="text-[11px] font-mono text-slate-500">
-                Dataset: DuckDB Local Parquet · {symbol} Daily OHLCV (Simulated)
-              </span>
+            <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                  1. Parquet Loaded ({symbol})
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                  2. Vectorized Signal
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                  3. Friction: {commissionBps + slippageBps} bps
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded font-semibold ${
+                    isRunning
+                      ? 'bg-blue-500/15 text-blue-500'
+                      : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                  }`}
+                >
+                  Execution Status: {isRunning ? 'Running Simulation...' : activeExp.status} ({activeExp.executionTimeMs}ms)
+                </span>
+              </div>
               <button
                 type="submit"
                 disabled={isRunning}
@@ -339,7 +356,7 @@ export const QuantLabPage: React.FC = () => {
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '11px', color: '#F8FAFC' }}
-                  formatter={(val: number) => formatCurrency(val, 'USD')}
+                  formatter={(val: unknown) => formatCurrency(Number(val) || 0, 'USD')}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Line
@@ -380,7 +397,7 @@ export const QuantLabPage: React.FC = () => {
                 <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} unit="%" />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '11px', color: '#F8FAFC' }}
-                  formatter={(val: number) => `${val}%`}
+                  formatter={(val: unknown) => `${val}%`}
                 />
                 <Area
                   type="monotone"
@@ -411,7 +428,7 @@ export const QuantLabPage: React.FC = () => {
                 <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} unit="%" />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '11px', color: '#F8FAFC' }}
-                  formatter={(val: number) => `${val}%`}
+                  formatter={(val: unknown) => `${val}%`}
                 />
                 <Bar dataKey="returnPct" name="Monthly Return %">
                   {activeExp.monthlyReturns.map((entry, idx) => (

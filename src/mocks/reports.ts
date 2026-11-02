@@ -20,7 +20,7 @@ export const NET_WORTH_HISTORY_12M: HistoricalPoint[] = [
   { date: '2026-08-01', label: 'Aug 26', netWorthUSD: 786100, cashUSD: 193400, investmentsUSD: 598200, liabilitiesUSD: 5500, benchmarkReturnPct: 7.2, portfolioReturnPct: 10.3 },
   { date: '2026-09-01', label: 'Sep 26', netWorthUSD: 804900, cashUSD: 198100, investmentsUSD: 612600, liabilitiesUSD: 5800, benchmarkReturnPct: 9.8, portfolioReturnPct: 13.6 },
   { date: '2026-10-01', label: 'Oct 26', netWorthUSD: 812700, cashUSD: 201500, investmentsUSD: 616800, liabilitiesUSD: 5600, benchmarkReturnPct: 11.2, portfolioReturnPct: 15.2 },
-  { date: '2026-11-02', label: 'Nov 26', netWorthUSD: 814529.3, cashUSD: 204260.0, investmentsUSD: 616572.0, liabilitiesUSD: 5822.65, benchmarkReturnPct: 12.4, portfolioReturnPct: 16.8 },
+  { date: '2026-11-02', label: 'Nov 26', netWorthUSD: 815009.35, cashUSD: 204260.0, investmentsUSD: 616572.0, liabilitiesUSD: 5822.65, benchmarkReturnPct: 12.4, portfolioReturnPct: 16.8 },
 ];
 
 export const CASH_FLOW_12M: CashFlowPoint[] = [

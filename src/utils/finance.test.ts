@@ -173,12 +173,33 @@ test('cash flow calculation excludes cross-account internal transfers from inflo
       rawSourceJson: '{}',
       dataSource: 'Plaid Mock',
     },
+    {
+      id: 'tx-5',
+      date: '2026-10-31',
+      institution: 'US Bank',
+      accountId: 'acc-us',
+      accountName: 'US Checking',
+      description: 'Pending Wire Outflow',
+      payee: 'Cloud Infra Corp',
+      fees: 0,
+      amount: -1480,
+      currency: 'USD',
+      type: 'Fee',
+      category: 'Expenses:Cloud',
+      direction: 'Outflow',
+      status: 'Pending',
+      ledgerStatus: 'Pending Approval',
+      rawSourceJson: '{}',
+      dataSource: 'Plaid Mock',
+    },
   ];
 
   const flow = calculateCashFlowTotals(txs, 'USD');
   assert.equal(flow.totalInflow, 8500);
   assert.equal(flow.totalOutflow, 2500);
   assert.equal(flow.netCashFlow, 6000);
+  assert.equal(flow.pendingOutflow, 1480);
+  assert.equal(flow.pendingInflow, 0);
   assert.equal(flow.excludedTransferVolume, 5000);
   assert.equal(flow.transferPairCount, 1);
 });

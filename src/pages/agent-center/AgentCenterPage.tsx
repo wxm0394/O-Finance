@@ -53,10 +53,10 @@ export const AgentCenterPage: React.FC = () => {
 
         <div className="flex items-center bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 rounded p-0.5 text-xs font-mono">
           {[
-            { id: 'playground', label: '1. Agent Playground & Call Chain' },
+            { id: 'playground', label: '1. Playground & Tool Timeline' },
             { id: 'details', label: '2. Agent Inspector & Model Routing' },
-            { id: 'permissions', label: '3. Tool Permissions Matrix' },
-            { id: 'logs', label: `4. Execution History (${agentLogs.length})` },
+            { id: 'permissions', label: '3. Tool Registry & Permissions' },
+            { id: 'logs', label: `4. Task Queue, History & Error Logs (${agentLogs.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -477,15 +477,68 @@ export const AgentCenterPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: 30 Agent Execution Logs */}
+      {/* TAB 4: Task Queue, Tool Call Timeline, Error Logs & 30 Agent Execution Logs */}
       {activeTab === 'logs' && (
-        <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Complete Agent Execution Telemetry ({agentLogs.length} Simulated Runs)
-            </h2>
-            <span className="text-xs font-mono text-slate-400">Append-Only Runtime Log</span>
+        <div className="space-y-4">
+          {/* Task Queue & Error / Guardrail Telemetry Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-7 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Simulated Agent Task Queue (Pydantic AI Worker Pool)
+                </h2>
+                <span className="text-[11px] font-mono text-emerald-500">Worker Pool: Standby (Mock)</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
+                <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-400">Queued Scheduled Tasks</div>
+                  <div className="font-bold text-slate-900 dark:text-white mt-0.5">2 Cron Jobs</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Next: 20:00 UTC Sync Audit</div>
+                </div>
+                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30">
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400">Awaiting Human Gate</div>
+                  <div className="font-bold text-amber-600 dark:text-amber-400 mt-0.5">5 Approval Tasks</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Paused in Approval Inbox</div>
+                </div>
+                <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-400">Completed Runs (24h)</div>
+                  <div className="font-bold text-emerald-500 mt-0.5">{agentLogs.length} Runs</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Avg Latency: 540ms</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Error Logs & Guardrail Interceptions (24h)
+                </h2>
+                <span className="text-[11px] font-mono text-emerald-500">0 Fatal Runtime Errors</span>
+              </div>
+              <div className="space-y-1.5 font-mono text-[11px]">
+                <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-between">
+                  <span>[GUARDRAIL] Low-Confidence Wire (0.64 &lt; 0.85)</span>
+                  <span>Escalate → APR-2026-001</span>
+                </div>
+                <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-between">
+                  <span>[CONNECTOR] EEA Bank PSD2 Consent &gt; 24h Stale</span>
+                  <span>Logged → ALOG-021</span>
+                </div>
+                <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
+                  <span>[MATH CHECK] All Agent Outputs Verified vs SQL/TS</span>
+                  <span>0 Hallucinations</span>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Complete Agent Execution Telemetry & Tool Call Timeline ({agentLogs.length} Simulated Runs)
+              </h2>
+              <span className="text-xs font-mono text-slate-400">Append-Only Runtime Log</span>
+            </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
@@ -529,6 +582,7 @@ export const AgentCenterPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       )}

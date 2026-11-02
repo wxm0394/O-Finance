@@ -17,7 +17,7 @@ const SECURITY_PRINCIPLES = [
 
 const CATEGORIES = [
   'ALL',
-  'Agent Execution',
+  'Assistant Execution',
   'Account Sync',
   'API Access',
   'Approval Decision',

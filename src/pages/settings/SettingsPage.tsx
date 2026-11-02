@@ -204,10 +204,10 @@ export const SettingsPage: React.FC = () => {
               </label>
               <input
                 type="number"
-                aria-label="Global Daily Agent Budget Cap"
-                value={formState.agentDailyBudgetUSD}
+                aria-label="Global Daily Assistant Budget Cap"
+                value={formState.assistantDailyBudgetUSD}
                 onChange={(e) =>
-                  setFormState({ ...formState, agentDailyBudgetUSD: Number(e.target.value) })
+                  setFormState({ ...formState, assistantDailyBudgetUSD: Number(e.target.value) })
                 }
                 className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono"
               />
@@ -220,9 +220,9 @@ export const SettingsPage: React.FC = () => {
               <input
                 type="number"
                 aria-label="Max Steps per Run"
-                value={formState.agentMaxStepsPerRun}
+                value={formState.assistantMaxStepsPerRun}
                 onChange={(e) =>
-                  setFormState({ ...formState, agentMaxStepsPerRun: Number(e.target.value) })
+                  setFormState({ ...formState, assistantMaxStepsPerRun: Number(e.target.value) })
                 }
                 className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono"
               />

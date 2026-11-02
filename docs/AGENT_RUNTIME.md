@@ -1,20 +1,37 @@
-# O-Finance AI Assistant Runtime Specification (`OFinanceAssistant` · v0.3)
+# O-Finance AI Assistant Runtime Specification (`OFinanceAssistant` · v0.3.1)
 
 ## 1. Core Architectural Decision: Single Assistant Only
 
-O-Finance v0.3 uses a **Single Assistant Architecture** built around one reusable **Pydantic AI** agent instance:
+O-Finance v0.3.1 uses a **Single Assistant Architecture** built around one reusable **Pydantic AI** agent specification:
 
 - **Assistant Identifier**: `OFinanceAssistant`
-- **One Shared Pydantic AI Runtime**: No multi-agent swarm, no LangGraph state-machine complexity, and no specialist sub-agent instances.
-- **One Primary LLM Provider & Shared Model Config**: All tasks share a single global model configuration (`Gemini`, `Claude`, `OpenAI-Compatible`, or optional global `Local Ollama`).
-- **One Backend API Key**: Stored exclusively in the Python FastAPI backend environment (`OFINANCE_AI_API_KEY`) or OS keyring. Never exposed to frontend state, browser `localStorage`, or `VITE_` variables.
-- **Zero Sub-Agent Delegation**: Instead of an orchestrator delegating to sub-agents, `OFinanceAssistant` switches between **Task Modes** (configuration profiles) and invokes deterministic tools sequentially.
+- **One Shared Runtime**: No multi-agent swarm, no LangGraph state-machine complexity, and no specialist sub-agent instances.
+- **Phase 1 Single Cloud LLM Provider (`Gemini`)**: Phase 1 fixes **Google Gemini** (`gemini-2.5-pro` and `gemini-2.5-flash`) as the sole cloud LLM provider so all 6 task modes share a single backend `GEMINI_API_KEY`. `Local Ollama` (`qwen2.5-coder:32b-instruct-q4_K_M`) is retained as an optional global offline mode. Multi-key provider rosters (`Claude`, `OpenAI-Compatible`) are excluded from Phase 1 to prevent multi-key management ambiguity.
+- **Honest API Key State (`api_key_configured`)**:
+  - The API key is stored exclusively in the Python FastAPI backend environment (`GEMINI_API_KEY` / `OFINANCE_AI_API_KEY`).
+  - Model preset switching (`applyModelPreset`) only updates `provider`, `model`, and `base_url`—it never sets `api_key_configured: true`.
+  - In Demo Mode (`VITE_DEMO_MODE !== 'false'`), `api_key_configured` is `false` and `api_key_status` is `Simulated / Unknown (Unverified in Demo Mode)`. Only the real FastAPI backend may return `api_key_configured: true` after verifying the backend environment key.
 
 ---
 
-## 2. Task Modes (Configuration Profiles)
+## 2. Dual-Mode Execution Architecture (`AssistantService.runTask`)
 
-Task modes are typed configuration profiles passed into `OFinanceAssistant` at run time via Pydantic AI's dynamic instructions, dependency injection, and toolset filtering:
+When the operator submits a prompt in the **AI Assistant Center**, `OFinanceContext.sendPlaygroundPrompt()` always invokes `AssistantService.runTask(payload)`:
+
+1. **Mode A — Deterministic Demo Adapter (`VITE_DEMO_MODE !== 'false'`)**:
+   - Executes `executeDeterministicDemoAssistantRun()` in `src/services/index.ts`.
+   - Reads the live in-memory `accounts`, `holdings`, `transactions`, and `journalEntries` state and invokes deterministic calculations from `src/utils/finance.ts` (`calculateWealthSummary`, `calculateCashFlowTotals`, concentration weights, and trial balance checks).
+   - Never uses hardcoded cash-flow or net-worth strings.
+   - Records `executionOrigin: 'DEMO_ADAPTER'`, `tokensUsed: null`, and `estimatedCostUSD: null` (`0 real tokens / $0.00 real spend`) so simulated runs are never disguised as live Gemini token billing.
+2. **Mode B — Local FastAPI + Pydantic AI Adapter (`VITE_DEMO_MODE === 'false'`)**:
+   - Sends `POST /api/v1/assistant/run` to the local Python FastAPI backend (`http://127.0.0.1:8000/api/v1/assistant/run`).
+   - Executes the real Pydantic AI `OFinanceAssistant` against Gemini (`gemini-2.5-pro` / `gemini-2.5-flash`) or `Local Ollama` and returns verified token usage, latency, and tool call traces (`executionOrigin: 'LOCAL_FASTAPI_GEMINI'`).
+
+---
+
+## 3. Task Modes (Configuration Profiles)
+
+Task modes are typed configuration profiles passed into `OFinanceAssistant` at run time:
 
 | Task Mode | Purpose | Accessible Tools | Expected Structured Output | Approval Policy |
 | :--- | :--- | :--- | :--- | :--- |
@@ -27,7 +44,7 @@ Task modes are typed configuration profiles passed into `OFinanceAssistant` at r
 
 ---
 
-## 3. Unified Model Configuration
+## 4. Unified Model Configuration (`UnifiedModelConfig`)
 
 All task modes share one global `UnifiedModelConfig` retrieved via `GET /api/v1/assistant/config`:
 
@@ -36,8 +53,9 @@ All task modes share one global `UnifiedModelConfig` retrieved via `GET /api/v1/
   "provider": "Gemini",
   "model": "gemini-2.5-pro",
   "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
-  "api_key_configured": true,
-  "model_status": "Simulated Configured",
+  "api_key_configured": false,
+  "api_key_status": "Simulated / Unknown (Unverified in Demo Mode)",
+  "model_status": "Simulated / Unknown (Demo Mode)",
   "request_timeout": 45,
   "max_output_tokens": 4096,
   "daily_budget_usd": 25.0,
@@ -45,21 +63,7 @@ All task modes share one global `UnifiedModelConfig` retrieved via `GET /api/v1/
 }
 ```
 
----
-
-## 4. Sequential Tool Execution Pattern
-
-When a user submits a prompt in the **AI Assistant Center**, `OFinanceAssistant` executes deterministic tools sequentially:
-
-```text
-OFinanceAssistant [Accounting Mode]
-  ├── Step 1: Read Transactions          (Read-Only)
-  ├── Step 2: Calculate Cash Flow        (Deterministic Computation)
-  ├── Step 3: Verify Double-Entry Balance(Deterministic Computation)
-  └── Step 4: Generate Journal Draft     (Drafting -> Queued for Approval)
-```
-
-Every numerical figure returned in the final structured output comes directly from deterministic tool outputs—never from LLM estimation.
+> When connected to the Phase 2 Local FastAPI backend with a valid `GEMINI_API_KEY`, the backend returns `"api_key_configured": true`, `"api_key_status": "Verified by Backend (GEMINI_API_KEY)"`, and `"model_status": "Connected (Backend Verified)"`.
 
 ---
 

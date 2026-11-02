@@ -1,8 +1,8 @@
 /**
- * Unified API Client Abstraction for O-Finance v0.2
- * - Defaults to Mock Adapter in Demo Mode (`VITE_DEMO_MODE !== 'false'`).
- * - Ready to connect to a local Python FastAPI Backend (`http://127.0.0.1:8000`) when exported.
- * - Provides typed request/response envelopes and explicit error normalization.
+ * Unified API Client Abstraction for O-Finance v0.3.1
+ * - Operates in two explicit, non-overlapping modes:
+ *   1. `DEMO` (`VITE_DEMO_MODE !== 'false'`): Uses local deterministic Demo Adapter. Never claims live LLM connectivity or verified API keys.
+ *   2. `LOCAL_FASTAPI` (`VITE_DEMO_MODE === 'false'`): Connects to the local Python FastAPI + Pydantic AI + Gemini backend (`http://127.0.0.1:8000`).
  */
 
 export type BackendRuntimeMode = 'DEMO' | 'LOCAL_FASTAPI';
@@ -39,10 +39,10 @@ export const apiClientConfig: ApiClientConfig = {
   demoMode: isDemo,
   runtimeMode: isDemo ? 'DEMO' : 'LOCAL_FASTAPI',
   baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
-  clientVersion: 'Desktop-Web-v0.2',
+  clientVersion: 'Desktop-Web-v0.3.1',
 };
 
-export async function simulateNetworkDelay<T>(data: T, ms = 150): Promise<T> {
+export async function simulateNetworkDelay<T>(data: T, ms = 120): Promise<T> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(data), ms);
   });
@@ -63,12 +63,12 @@ export class ApiClient {
 
   static async request<T>(
     endpoint: string,
-    fallbackMock: () => T | Promise<T>,
+    fallbackDemoAdapter: () => T | Promise<T>,
     options?: RequestInit
   ): Promise<T> {
     if (this.isDemoMode) {
-      const result = await fallbackMock();
-      return simulateNetworkDelay(result, 140);
+      const result = await fallbackDemoAdapter();
+      return simulateNetworkDelay(result, 120);
     }
 
     const res = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -97,9 +97,10 @@ export class ApiClient {
 
   static async requestEnvelope<T>(
     endpoint: string,
-    fallbackMock: () => T | Promise<T>
+    fallbackDemoAdapter: () => T | Promise<T>,
+    options?: RequestInit
   ): Promise<ApiResponseEnvelope<T>> {
-    const data = await this.request<T>(endpoint, fallbackMock);
+    const data = await this.request<T>(endpoint, fallbackDemoAdapter, options);
     return {
       data,
       meta: {

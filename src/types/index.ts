@@ -217,8 +217,12 @@ export interface BacktestExperiment {
 }
 
 /**
- * O-Finance v0.3 Single Assistant Architecture (`OFinanceAssistant`)
- * Task modes are configuration profiles rather than separate agents.
+ * O-Finance v0.3.1 Single Assistant Architecture (`OFinanceAssistant`)
+ * - Task modes are configuration profiles rather than separate agents.
+ * - Phase 1 fixes Gemini as the sole cloud LLM provider (one shared backend API key).
+ * - Local Ollama is an optional global offline mode.
+ * - Strictly separates Demo Adapter (simulated deterministic traces, 0 real token/cost telemetry)
+ *   from Local FastAPI Runtime (real Gemini calls, backend-verified key, real token/cost metrics).
  */
 export type AssistantTaskMode =
   | 'Accounting'
@@ -227,6 +231,8 @@ export type AssistantTaskMode =
   | 'Quantitative Research'
   | 'Audit'
   | 'Risk Analysis';
+
+export type AssistantExecutionOrigin = 'DEMO_ADAPTER' | 'LOCAL_FASTAPI_GEMINI';
 
 export interface TaskModeProfile {
   mode: AssistantTaskMode;
@@ -240,11 +246,24 @@ export interface TaskModeProfile {
 }
 
 export interface UnifiedModelConfig {
-  provider: 'Gemini' | 'Claude' | 'OpenAI-Compatible' | 'Local Ollama';
+  provider: 'Gemini' | 'Local Ollama';
   model: string;
   base_url: string;
+  /**
+   * Must NEVER default to true in frontend Demo state or when switching presets.
+   * Only the FastAPI backend may return `true` after verifying `GEMINI_API_KEY`.
+   * In Demo Mode this is `false` (unverified).
+   */
   api_key_configured: boolean;
-  model_status: 'Simulated Configured' | 'Local Standby' | 'Backend Vault Only';
+  api_key_status:
+    | 'Simulated / Unknown (Unverified in Demo Mode)'
+    | 'Backend Verified (FastAPI)'
+    | 'Missing in Backend Vault'
+    | 'Not Required (Local Ollama — Unverified Host)';
+  model_status:
+    | 'Simulated / Unknown (Demo Mode)'
+    | 'Local Offline Standby (Unverified)'
+    | 'Backend Verified';
   request_timeout: number;
   max_output_tokens: number;
   daily_budget_usd: number;
@@ -258,10 +277,10 @@ export interface ModelProviderPreset {
   base_url: string;
   contextWindow: string;
   latencyEstimate: string;
-  model_status: UnifiedModelConfig['model_status'];
+  roleDescription: string;
 }
 
-export interface AgentToolPermission {
+export interface AssistantToolPermission {
   id: string;
   name: string;
   description: string;
@@ -275,18 +294,25 @@ export interface AgentToolPermission {
   lockedReadOnly?: boolean;
 }
 
-export interface AgentExecutionLog {
+export interface AssistantTaskLog {
   id: string;
   timestamp: string;
   assistantName: 'OFinanceAssistant';
   taskMode: AssistantTaskMode;
+  executionOrigin: AssistantExecutionOrigin;
   trigger: 'User Prompt' | 'Scheduled Audit' | 'Sync Hook' | 'Manual Trigger';
   taskSummary: string;
   toolsInvoked: string[];
   durationMs: number;
-  tokensUsed: number;
-  estimatedCostUSD: number;
-  status: 'Success (Simulated)' | 'Approval Requested' | 'Warning Flagged';
+  /**
+   * Null in DEMO_ADAPTER mode so simulated runs are never misrepresented as real token consumption.
+   */
+  tokensUsed: number | null;
+  /**
+   * Null in DEMO_ADAPTER mode so simulated runs are never misrepresented as real LLM spend.
+   */
+  estimatedCostUSD: number | null;
+  status: 'Success (Demo Adapter)' | 'Success (Live Runtime)' | 'Approval Requested' | 'Warning Flagged';
   outputPreview: string;
 }
 
@@ -295,7 +321,7 @@ export interface AssistantToolTimelineStep {
   toolName: string;
   category: 'Read-Only' | 'Deterministic Computation' | 'Drafting' | 'Governance';
   callSignature: string;
-  status: 'Completed (Simulated)';
+  status: 'Completed (Demo Deterministic)' | 'Completed (Live Runtime)';
   deterministicFinding: string;
   durationMs: number;
 }
@@ -305,6 +331,7 @@ export interface PlaygroundMessage {
   role: 'user' | 'assistant';
   timestamp: string;
   taskMode?: AssistantTaskMode;
+  executionOrigin?: AssistantExecutionOrigin;
   content: string;
   toolTimeline?: AssistantToolTimelineStep[];
   structuredMetrics?: { label: string; value: string; delta?: string }[];
@@ -340,7 +367,7 @@ export interface AuditLogEntry {
   id: string;
   timestamp: string;
   category:
-    | 'Agent Execution'
+    | 'Assistant Execution'
     | 'Account Sync'
     | 'API Access'
     | 'Approval Decision'
@@ -402,8 +429,8 @@ export interface SystemSettingsState {
   favaUrl: string;
   beancountFilePath: string;
   dailyAnalysisApiUrl: string;
-  agentDailyBudgetUSD: number;
-  agentMaxStepsPerRun: number;
+  assistantDailyBudgetUSD: number;
+  assistantMaxStepsPerRun: number;
   strictHumanInTheLoop: boolean;
   readOnlyConnectorsEnforced: boolean;
   dataRetentionDays: number;

@@ -131,7 +131,7 @@ export const WorkstationShell: React.FC = () => {
                 O-Finance
               </span>
               <span className="hidden xl:inline-block ml-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
-                v0.3 · Local Workstation
+                v0.3.1 · Local Workstation
               </span>
             </div>
           </button>
@@ -271,9 +271,9 @@ export const WorkstationShell: React.FC = () => {
         <div className="flex items-center gap-3 shrink-0 text-xs">
           {/* Explicit Architecture Telemetry */}
           <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            <span>Backend: Mock</span>
+            <span>Runtime: Demo Adapter</span>
             <span aria-hidden="true">·</span>
-            <span>OFinanceAssistant: Standby (Sim)</span>
+            <span>Key: Unverified (Sim)</span>
           </div>
 
           {/* Base Currency Selector */}

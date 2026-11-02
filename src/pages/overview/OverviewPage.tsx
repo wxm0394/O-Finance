@@ -18,7 +18,7 @@ import {
   Legend,
 } from 'recharts';
 import { useOFinance } from '../../app/providers/OFinanceContext';
-import { TimeRange, TransactionRecord, AgentExecutionLog } from '../../types';
+import { TimeRange, TransactionRecord, AssistantTaskLog } from '../../types';
 import {
   convertCurrency,
   formatCurrency,
@@ -41,7 +41,7 @@ export const OverviewPage: React.FC = () => {
     holdings,
     transactions,
     approvalTasks,
-    agentLogs,
+    assistantTaskLogs,
     netWorthHistory,
     cashFlowHistory,
     lastGlobalSync,
@@ -53,9 +53,9 @@ export const OverviewPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1Y');
   const [selectedActivity, setSelectedActivity] = useState<{
-    type: 'transaction' | 'agent';
+    type: 'transaction' | 'assistant';
     tx?: TransactionRecord;
-    log?: AgentExecutionLog;
+    log?: AssistantTaskLog;
   } | null>(null);
 
   // Filter historical points based on selected TimeRange
@@ -626,10 +626,10 @@ export const OverviewPage: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-                {agentLogs.slice(0, 2).map((log) => (
+                {assistantTaskLogs.slice(0, 2).map((log) => (
                   <tr
                     key={log.id}
-                    onClick={() => setSelectedActivity({ type: 'agent', log })}
+                    onClick={() => setSelectedActivity({ type: 'assistant', log })}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                   >
                     <td className="py-2 pr-3 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -645,14 +645,14 @@ export const OverviewPage: React.FC = () => {
                       {log.taskSummary}
                     </td>
                     <td className="py-2 px-3 font-mono text-right text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {log.tokensUsed} tok · {log.durationMs}ms
+                      {log.tokensUsed !== null ? `${log.tokensUsed} tok` : 'Demo Adapter (0 real tok)'} · {log.durationMs}ms
                     </td>
                     <td className="py-2 pl-3 text-right">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedActivity({ type: 'agent', log });
+                          setSelectedActivity({ type: 'assistant', log });
                         }}
                         className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
                       >

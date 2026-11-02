@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { AssistantTaskMode } from '../../types';
-import { GUARDRAIL_INTERCEPTION_LOGS } from '../../mocks/agents';
+import { GUARDRAIL_INTERCEPTION_LOGS } from '../../mocks/assistant';
 import {
   Cpu,
   Send,
@@ -23,7 +23,7 @@ const PRESET_PROMPTS: { label: string; mode: AssistantTaskMode; prompt: string }
   {
     label: '1. Analyze Monthly Cash Flow (Accounting Mode)',
     mode: 'Accounting',
-    prompt: 'Analyze my October cash flow, savings rate, and verify internal transfer exclusions.',
+    prompt: 'Analyze my settled cash flow, net retention rate, and verify internal transfer exclusions.',
   },
   {
     label: '2. Audit Unmatched Transactions & Trial Balance (Audit Mode)',
@@ -33,22 +33,22 @@ const PRESET_PROMPTS: { label: string; mode: AssistantTaskMode; prompt: string }
   {
     label: '3. Evaluate Concentration & Drawdown (Risk Analysis Mode)',
     mode: 'Risk Analysis',
-    prompt: 'Evaluate single-stock concentration risk, sector limits, and 12-month maximum drawdown.',
+    prompt: 'Evaluate single-stock concentration risk, sector limits, and cash liquidity ratio.',
   },
   {
-    label: '4. Compare Allocation vs Last Month (Portfolio Analysis Mode)',
+    label: '4. Aggregate Multi-Brokerage Portfolio (Portfolio Analysis Mode)',
     mode: 'Portfolio Analysis',
-    prompt: 'Compare my current multi-brokerage asset allocation and FX exposure against last month.',
+    prompt: 'Aggregate my multi-brokerage asset allocation, overall return, and non-USD FX exposure.',
   },
   {
-    label: '5. Run 50/200 Dual EMA Backtest Audit (Quant Research Mode)',
+    label: '5. Inspect DuckDB Backtest Registry (Quant Research Mode)',
     mode: 'Quantitative Research',
-    prompt: 'Summarize the 50/200 Dual EMA DuckDB backtest on SPY net of commission and slippage.',
+    prompt: 'Summarize the latest DuckDB strategy backtest net of commission and slippage.',
   },
   {
     label: '6. Synthesize Semiconductor CapEx Briefing (Research Mode)',
     mode: 'Research',
-    prompt: 'Synthesize semiconductor CapEx exposure across NVDA, TSM, and ASML and check external research status.',
+    prompt: 'Synthesize semiconductor CapEx exposure across tech holdings and check external research status.',
   },
 ];
 
@@ -64,8 +64,9 @@ export const AgentCenterPage: React.FC = () => {
     applyModelPreset,
     toolPermissions,
     toggleToolPermission,
-    agentLogs,
+    assistantTaskLogs,
     playgroundMessages,
+    isAssistantRunning,
     sendPlaygroundPrompt,
     approvalTasks,
   } = useOFinance();
@@ -81,15 +82,16 @@ export const AgentCenterPage: React.FC = () => {
 
   const pendingApprovals = approvalTasks.filter((t) => t.status === 'Pending');
 
-  const filteredLogs = agentLogs.filter(
+  const filteredLogs = assistantTaskLogs.filter(
     (log) => logModeFilter === 'ALL' || log.taskMode === logModeFilter
   );
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!promptInput.trim()) return;
-    sendPlaygroundPrompt(promptInput, selectedTaskMode);
+    if (!promptInput.trim() || isAssistantRunning) return;
+    const text = promptInput;
     setPromptInput('');
+    await sendPlaygroundPrompt(text, selectedTaskMode);
   };
 
   const toolCategories = [
@@ -102,7 +104,7 @@ export const AgentCenterPage: React.FC = () => {
 
   const budgetUsagePct = Math.min(
     100,
-    Math.round((assistantStatus.budgetUsedTodayUSD / unifiedModelConfig.daily_budget_usd) * 100)
+    Math.round((assistantStatus.realBudgetUsedTodayUSD / unifiedModelConfig.daily_budget_usd) * 100)
   );
 
   return (
@@ -114,12 +116,12 @@ export const AgentCenterPage: React.FC = () => {
             <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
               AI Assistant Center · OFinanceAssistant (DEMO)
             </h1>
-            <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 font-mono text-[11px] font-semibold">
-              Single-Assistant Architecture v0.3
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono text-[11px] font-semibold">
+              v0.3.1 · Demo Adapter Active (FastAPI Harness Pending)
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            One reusable Pydantic AI assistant (<code className="font-mono">OFinanceAssistant</code>) with 6 task mode configuration profiles, one unified LLM provider, and deterministic tool execution.
+            One reusable Pydantic AI assistant (<code className="font-mono">OFinanceAssistant</code>) with 6 task modes, Phase 1 single Gemini cloud provider, and explicit separation between Demo Adapter simulation and Local FastAPI runtime.
           </p>
         </div>
 
@@ -127,9 +129,9 @@ export const AgentCenterPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
           {[
             { id: 'playground', label: '1. Assistant Playground & Timeline', icon: Terminal },
-            { id: 'config', label: '2. Unified Model & Budget Config', icon: Sliders },
+            { id: 'config', label: '2. Unified Model & Key Status', icon: Sliders },
             { id: 'tools', label: '3. Unified Tool Registry (20)', icon: Lock },
-            { id: 'logs', label: `4. Execution History & Guardrails (${agentLogs.length})`, icon: Activity },
+            { id: 'logs', label: `4. Task Logs & Guardrails (${assistantTaskLogs.length})`, icon: Activity },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -155,54 +157,54 @@ export const AgentCenterPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 font-mono text-xs">
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Central AI Instance</span>
+            <span>Central AI Instance & Adapter</span>
             <Cpu className="w-3.5 h-3.5 text-blue-500" />
           </div>
           <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">
-            {assistantStatus.assistantName}
+            {assistantStatus.assistantName} ({assistantStatus.runtimeMode})
           </div>
-          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
-            {assistantStatus.runtimeStatus} · 0 Sub-Agents
+          <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+            {assistantStatus.runtimeStatus}
           </div>
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Unified LLM Provider & Model</span>
+            <span>Phase 1 Unified LLM Target</span>
             <Layers className="w-3.5 h-3.5 text-blue-500" />
           </div>
           <div className="text-sm font-bold text-slate-900 dark:text-white mt-1 truncate">
             {unifiedModelConfig.provider} · {unifiedModelConfig.model}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 truncate">
-            Shared across all 6 Task Modes · Timeout {unifiedModelConfig.request_timeout}s
+            {unifiedModelConfig.model_status}
           </div>
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Credential Isolation Status</span>
-            <KeyRound className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Backend Credential Verification</span>
+            <KeyRound className="w-3.5 h-3.5 text-amber-500" />
           </div>
-          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-            api_key_configured: {unifiedModelConfig.api_key_configured ? 'true' : 'false'}
+          <div className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-1">
+            api_key_configured: {String(unifiedModelConfig.api_key_configured)}
           </div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-            Backend Vault / OS Keyring Only · 0 Keys in Browser
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 truncate">
+            {unifiedModelConfig.api_key_status}
           </div>
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Global AI Budget Monitor (Today)</span>
+            <span>Real LLM Spend vs Daily Cap</span>
             <DollarSign className="w-3.5 h-3.5 text-blue-500" />
           </div>
           <div className="flex items-baseline justify-between mt-1">
             <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
-              ${assistantStatus.budgetUsedTodayUSD.toFixed(2)} / ${unifiedModelConfig.daily_budget_usd.toFixed(2)} USD
+              ${assistantStatus.realBudgetUsedTodayUSD.toFixed(2)} / ${unifiedModelConfig.daily_budget_usd.toFixed(2)} USD
             </span>
-            <span className="text-[11px] text-slate-400">
-              Per-Task Cap: ${unifiedModelConfig.per_task_budget_usd.toFixed(2)}
+            <span className="text-[10px] text-slate-400">
+              {assistantStatus.realTokensUsedToday} real tok ({assistantStatus.simulatedTasksExecutedToday} sim runs)
             </span>
           </div>
           <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden mt-1.5">
@@ -219,10 +221,10 @@ export const AgentCenterPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Task Mode Selector (Configuration Profiles on Shared OFinanceAssistant)
+              Task Mode Selector (6 Configuration Profiles on Shared OFinanceAssistant)
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Select a task mode profile to inspect its dynamic instructions, permitted data scope, accessible tools, structured output schema, and approval policy.
+              All 6 task modes share the single Gemini model configuration and backend API key. Select a mode to inspect its instructions, toolset, and output schema.
             </p>
           </div>
           <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
@@ -335,12 +337,12 @@ export const AgentCenterPage: React.FC = () => {
             <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Simulated Task Prompts
+                  Dual-Mode Task Runner
                 </h3>
-                <span className="text-[11px] font-mono text-slate-400">POST /api/v1/assistant/run</span>
+                <span className="text-[11px] font-mono text-slate-400">AssistantService.runTask()</span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Click a preset below to run <code className="font-mono">OFinanceAssistant</code> in the corresponding task mode and inspect the sequential tool call timeline:
+                In <strong>Demo Mode</strong>, clicking a task runs <code className="font-mono">AssistantService.runTask()</code> against the deterministic Demo Adapter (computing live figures from your in-memory accounts, holdings, and transactions with 0 real LLM tokens). In <strong>Local FastAPI Mode</strong>, it dispatches to Pydantic AI + Gemini:
               </p>
 
               <div className="space-y-2">
@@ -348,8 +350,9 @@ export const AgentCenterPage: React.FC = () => {
                   <button
                     key={item.label}
                     type="button"
+                    disabled={isAssistantRunning}
                     onClick={() => sendPlaygroundPrompt(item.prompt, item.mode)}
-                    className="w-full text-left p-2.5 rounded bg-slate-50 dark:bg-slate-900 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 text-xs transition-colors"
+                    className="w-full text-left p-2.5 rounded bg-slate-50 dark:bg-slate-900 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-800 hover:border-blue-500/40 text-xs transition-colors disabled:opacity-50"
                   >
                     <div className="font-semibold text-blue-600 dark:text-blue-400">{item.label}</div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
@@ -388,14 +391,14 @@ export const AgentCenterPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  OFinanceAssistant Execution Timeline (Simulated Sequential Tool Trace)
+                  OFinanceAssistant Execution Timeline
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Single assistant invoking deterministic tools in sequence · Zero sub-agent delegation
+                  Explicitly distinguishes <code className="font-mono">DEMO_ADAPTER</code> deterministic simulation from <code className="font-mono">LOCAL_FASTAPI_GEMINI</code> live runs
                 </p>
               </div>
               <span className="font-mono text-[11px] text-amber-600 dark:text-amber-400">
-                SIMULATED RUNTIME · DETERMINISTIC TOOLS
+                ORIGIN: DEMO_ADAPTER (0 REAL TOKENS BILLED)
               </span>
             </div>
 
@@ -415,11 +418,16 @@ export const AgentCenterPage: React.FC = () => {
                       <span className="font-bold text-slate-800 dark:text-slate-200">
                         {msg.role === 'user'
                           ? 'OPERATOR PROMPT'
-                          : 'OFinanceAssistant (Pydantic AI Single Runtime)'}
+                          : 'OFinanceAssistant'}
                       </span>
                       {msg.taskMode && (
                         <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-300 text-[10px] font-semibold">
                           Mode: {msg.taskMode}
+                        </span>
+                      )}
+                      {msg.executionOrigin && (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 text-[10px] font-semibold">
+                          {msg.executionOrigin}
                         </span>
                       )}
                     </div>
@@ -518,32 +526,33 @@ export const AgentCenterPage: React.FC = () => {
                 aria-label="Ask OFinanceAssistant"
                 value={promptInput}
                 onChange={(e) => setPromptInput(e.target.value)}
-                placeholder={`Ask OFinanceAssistant in ${selectedTaskMode} Mode...`}
+                placeholder={`Run OFinanceAssistant in ${selectedTaskMode} Mode via AssistantService.runTask()...`}
                 className="flex-1 px-3 py-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
               />
               <button
                 type="submit"
-                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 shrink-0"
+                disabled={isAssistantRunning}
+                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium flex items-center gap-1.5 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Run Assistant (Sim)</span>
+                <span>{isAssistantRunning ? 'Running...' : 'Run Assistant'}</span>
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* TAB 2: Unified Model Configuration & Global Budget */}
+      {/* TAB 2: Unified Model Configuration & Honest Key Status */}
       {activeTab === 'config' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left: Global Provider Presets (5 cols) */}
+          {/* Left: Phase 1 Single Cloud Provider (Gemini) + Optional Local Ollama (5 cols) */}
           <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Primary LLM Provider Presets (Global Selection)
+                Phase 1 Provider Policy: Gemini Only + Optional Local Ollama
               </h2>
               <p className="text-[11px] text-slate-500">
-                O-Finance v0.3 enforces one shared LLM provider across all task modes. Local Ollama remains available as an optional global provider without creating separate agents.
+                Phase 1 fixes <strong>Gemini</strong> as the sole cloud LLM provider so all 6 task modes share one <code className="font-mono">GEMINI_API_KEY</code> in the Python backend. Switching presets below updates only <code className="font-mono">provider</code>, <code className="font-mono">model</code>, and <code className="font-mono">base_url</code>—it never fakes <code className="font-mono">api_key_configured: true</code>.
               </p>
             </div>
 
@@ -565,16 +574,19 @@ export const AgentCenterPage: React.FC = () => {
                       <span className="font-bold text-slate-900 dark:text-white">
                         {preset.provider} · {preset.model}
                       </span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                        {preset.model_status}
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                        Key: Unverified (Demo)
                       </span>
                     </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                      {preset.roleDescription}
+                    </p>
                     <div className="font-mono text-[11px] text-slate-500 truncate">
                       base_url: {preset.base_url}
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="font-mono text-[10px] text-slate-400">
-                        Context: {preset.contextWindow} · {preset.latencyEstimate}
+                        Context: {preset.contextWindow}
                       </span>
                       <button
                         type="button"
@@ -585,7 +597,7 @@ export const AgentCenterPage: React.FC = () => {
                             : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
                         }`}
                       >
-                        {isCurrent ? 'Active Global Model' : 'Select Globally'}
+                        {isCurrent ? 'Selected Target' : 'Switch Target'}
                       </button>
                     </div>
                   </div>
@@ -602,10 +614,10 @@ export const AgentCenterPage: React.FC = () => {
                   Unified Model Configuration (GET /api/v1/assistant/config)
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Single shared configuration for <code className="font-mono">OFinanceAssistant</code>. No per-agent model routing or per-agent API keys exist.
+                  Single shared configuration for <code className="font-mono">OFinanceAssistant</code>. No multi-key management or per-agent routing.
                 </p>
               </div>
-              <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+              <span className="font-mono text-[11px] text-amber-600 dark:text-amber-400">
                 {unifiedModelConfig.model_status}
               </span>
             </div>
@@ -613,7 +625,7 @@ export const AgentCenterPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono">
               <div>
                 <label className="block text-[11px] font-sans text-slate-500 mb-1">
-                  provider
+                  provider (Phase 1 Fixed Cloud = Gemini)
                 </label>
                 <select
                   aria-label="Global AI Provider"
@@ -625,10 +637,8 @@ export const AgentCenterPage: React.FC = () => {
                   }
                   className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
                 >
-                  <option value="Gemini">Gemini (Primary Cloud)</option>
-                  <option value="Claude">Claude (Primary Cloud)</option>
-                  <option value="OpenAI-Compatible">OpenAI-Compatible</option>
-                  <option value="Local Ollama">Local Ollama (Optional Global Local)</option>
+                  <option value="Gemini">Gemini (Phase 1 Sole Cloud Provider)</option>
+                  <option value="Local Ollama">Local Ollama (Optional Global Offline Mode)</option>
                 </select>
               </div>
 
@@ -721,13 +731,13 @@ export const AgentCenterPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Security Invariant Box for API Key */}
-            <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-mono text-[11px] space-y-1">
+            {/* Honest API Key Status Box */}
+            <div className="p-3 rounded bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-mono text-[11px] space-y-1">
               <div className="font-bold">
-                api_key_configured: {String(unifiedModelConfig.api_key_configured)} · model_status: "{unifiedModelConfig.model_status}"
+                api_key_configured: {String(unifiedModelConfig.api_key_configured)} · api_key_status: "{unifiedModelConfig.api_key_status}"
               </div>
               <div>
-                SECURITY INVARIANT: The single cloud LLM API key (`OFINANCE_AI_API_KEY`) is stored exclusively in the Python FastAPI backend environment or Kali Linux OS credential store. It is never stored in frontend state, browser LocalStorage, or `VITE_` environment variables.
+                CREDENTIAL VERIFICATION POLICY: Frontend model selection never sets `api_key_configured: true`. In Demo Mode, no backend key check occurs so the status is explicitly reported as Unverified / Simulated. When running against the local FastAPI backend on Kali Linux, `GET /api/v1/assistant/config` verifies `GEMINI_API_KEY` in the backend environment and returns the real boolean status.
               </div>
             </div>
           </div>
@@ -867,10 +877,10 @@ export const AgentCenterPage: React.FC = () => {
             <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  OFinanceAssistant Execution History ({filteredLogs.length} Tasks)
+                  OFinanceAssistant Task Execution History ({filteredLogs.length} Tasks)
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Every execution runs on the single shared <code className="font-mono">OFinanceAssistant</code> instance under a specific Task Mode profile
+                  Demo Adapter records explicitly report <code className="font-mono">0 real tokens / $0.00</code> so simulated tasks are never confused with live Gemini billing
                 </p>
               </div>
 
@@ -899,9 +909,9 @@ export const AgentCenterPage: React.FC = () => {
                     <th className="py-2.5 px-3 font-medium">Task ID</th>
                     <th className="py-2.5 px-3 font-medium">Timestamp</th>
                     <th className="py-2.5 px-3 font-medium">Assistant & Task Mode</th>
-                    <th className="py-2.5 px-3 font-medium">Trigger</th>
+                    <th className="py-2.5 px-3 font-medium">Origin</th>
                     <th className="py-2.5 px-3 font-medium">Task Summary & Sequential Tools</th>
-                    <th className="py-2.5 px-3 font-medium text-right">Duration / Cost</th>
+                    <th className="py-2.5 px-3 font-medium text-right">Duration / Token Telemetry</th>
                     <th className="py-2.5 px-3 font-medium text-right">Status</th>
                   </tr>
                 </thead>
@@ -922,8 +932,10 @@ export const AgentCenterPage: React.FC = () => {
                           Mode: {log.taskMode}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                        {log.trigger}
+                      <td className="py-2.5 px-3 font-mono text-[10px] whitespace-nowrap">
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300">
+                          {log.executionOrigin}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3 max-w-md">
                         <div className="text-slate-900 dark:text-slate-100 font-medium">
@@ -934,12 +946,14 @@ export const AgentCenterPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-2.5 px-3 font-mono text-[11px] text-right whitespace-nowrap tabular-nums">
-                        {log.durationMs}ms · {log.tokensUsed} tok (${log.estimatedCostUSD.toFixed(2)})
+                        {log.tokensUsed !== null && log.estimatedCostUSD !== null
+                          ? `${log.durationMs}ms · ${log.tokensUsed} tok ($${log.estimatedCostUSD.toFixed(2)})`
+                          : `${log.durationMs}ms · Sim (0 real tok / $0.00)`}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-[11px] text-right whitespace-nowrap">
                         <span
                           className={
-                            log.status === 'Success (Simulated)'
+                            log.status.startsWith('Success')
                               ? 'text-emerald-600 dark:text-emerald-400'
                               : 'text-amber-600 dark:text-amber-400 font-semibold'
                           }

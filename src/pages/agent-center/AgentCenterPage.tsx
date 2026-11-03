@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOFinance } from '../../app/providers/OFinanceContext';
+import { useI18n } from '../../i18n';
 import { AssistantTaskMode } from '../../types';
 import { GUARDRAIL_INTERCEPTION_LOGS } from '../../mocks/assistant';
 import { ApiClient } from '../../services/api/client';
@@ -54,6 +55,7 @@ const PRESET_PROMPTS: { label: string; mode: AssistantTaskMode; prompt: string }
 ];
 
 export const AgentCenterPage: React.FC = () => {
+  const { t } = useI18n();
   const {
     assistantStatus,
     taskModeProfiles,
@@ -219,16 +221,17 @@ export const AgentCenterPage: React.FC = () => {
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Real LLM Spend vs Daily Cap</span>
+            <span>{t.assistant.budgetCap}</span>
             <DollarSign className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <div className="flex items-baseline justify-between mt-1">
-            <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
+          <div className="mt-1 space-y-0.5">
+            <div className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
               ${assistantStatus.realBudgetUsedTodayUSD.toFixed(2)} / ${unifiedModelConfig.daily_budget_usd.toFixed(2)} USD
-            </span>
-            <span className="text-[10px] text-slate-400">
-              {assistantStatus.realTokensUsedToday} real tok ({assistantStatus.simulatedTasksExecutedToday} sim runs)
-            </span>
+            </div>
+            <div className="text-[10px] text-slate-400 flex items-center justify-between">
+              <span>{assistantStatus.realTokensUsedToday} real tok</span>
+              <span>{assistantStatus.simulatedTasksExecutedToday} sim runs</span>
+            </div>
           </div>
           <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden mt-1.5">
             <div

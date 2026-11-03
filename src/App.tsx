@@ -4,6 +4,7 @@
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { I18nProvider } from './i18n';
 import { OFinanceProvider } from './app/providers/OFinanceContext';
 import { WorkstationShell } from './app/layout/WorkstationShell';
 import { OverviewPage } from './pages/overview/OverviewPage';
@@ -20,25 +21,27 @@ import { SettingsPage } from './pages/settings/SettingsPage';
 
 export default function App() {
   return (
-    <OFinanceProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<WorkstationShell />}>
-            <Route index element={<OverviewPage />} />
-            <Route path="accounts" element={<AccountsPage />} />
-            <Route path="transactions" element={<TransactionsPage />} />
-            <Route path="accounting" element={<AccountingPage />} />
-            <Route path="portfolio" element={<PortfolioPage />} />
-            <Route path="market-intelligence" element={<MarketIntelligencePage />} />
-            <Route path="quant-lab" element={<QuantLabPage />} />
-            <Route path="agent-center" element={<AgentCenterPage />} />
-            <Route path="approvals" element={<ApprovalInboxPage />} />
-            <Route path="audit" element={<AuditSecurityPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </OFinanceProvider>
+    <I18nProvider>
+      <OFinanceProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<WorkstationShell />}>
+              <Route index element={<OverviewPage />} />
+              <Route path="accounts" element={<AccountsPage />} />
+              <Route path="transactions" element={<TransactionsPage />} />
+              <Route path="accounting" element={<AccountingPage />} />
+              <Route path="portfolio" element={<PortfolioPage />} />
+              <Route path="market-intelligence" element={<MarketIntelligencePage />} />
+              <Route path="quant-lab" element={<QuantLabPage />} />
+              <Route path="agent-center" element={<AgentCenterPage />} />
+              <Route path="approvals" element={<ApprovalInboxPage />} />
+              <Route path="audit" element={<AuditSecurityPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </OFinanceProvider>
+    </I18nProvider>
   );
 }

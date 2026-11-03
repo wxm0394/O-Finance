@@ -3,6 +3,7 @@ import { useOFinance } from '../../app/providers/OFinanceContext';
 import { formatCurrency, formatPercent } from '../../utils/finance';
 import { ResearchReportItem } from '../../types';
 import { Globe, FileText, Calendar, Link2, Eye, X, ShieldCheck } from 'lucide-react';
+import { useI18n } from '../../i18n';
 
 const INDICES_SNAPSHOT = [
   { name: 'S&P 500 (SPX)', value: '5,892.45', changePct: +0.68, region: 'US' },
@@ -14,6 +15,7 @@ const INDICES_SNAPSHOT = [
 ];
 
 export const MarketIntelligencePage: React.FC = () => {
+  const { t, l } = useI18n();
   const {
     watchlist,
     researchReports,
@@ -35,9 +37,10 @@ export const MarketIntelligencePage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            Market Intelligence & External Research Hub (DEMO)
+            {t.market.title}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {t.market.subtitle}
             Simulated global benchmarks, watchlist valuation metrics, macro economic calendar, and read-only External Research Connectors.
           </p>
         </div>
@@ -104,26 +107,28 @@ export const MarketIntelligencePage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs font-mono bg-slate-50 dark:bg-slate-900/70 p-3 rounded border border-slate-200 dark:border-slate-800">
-          <div>
-            <span className="text-[10px] text-slate-400 block">Service Name</span>
-            <span className="font-semibold text-slate-900 dark:text-white">Daily Analysis Connector</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-mono bg-slate-50 dark:bg-slate-900/70 p-3 rounded border border-slate-200 dark:border-slate-800">
+          <div className="min-w-0">
+            <span className="text-[10px] text-slate-400 block truncate">Service Name</span>
+            <span className="font-semibold text-slate-900 dark:text-white truncate block">Daily Analysis Connector</span>
           </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">API Base URL (Placeholder)</span>
-            <span className="text-blue-600 dark:text-blue-400">{settings.dailyAnalysisApiUrl}</span>
+          <div className="min-w-0">
+            <span className="text-[10px] text-slate-400 block truncate">API Base URL (Placeholder)</span>
+            <span className="text-blue-600 dark:text-blue-400 block truncate font-mono text-xs" title={settings.dailyAnalysisApiUrl}>
+              {settings.dailyAnalysisApiUrl}
+            </span>
           </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">Last Report Sync</span>
-            <span>Never (Placeholder Interface)</span>
+          <div className="min-w-0">
+            <span className="text-[10px] text-slate-400 block truncate">Last Report Sync</span>
+            <span className="truncate block">Never (Placeholder Interface)</span>
           </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">Latest Report Date</span>
-            <span>N/A (Not Connected)</span>
+          <div className="min-w-0">
+            <span className="text-[10px] text-slate-400 block truncate">Latest Report Date</span>
+            <span className="truncate block">N/A (Not Connected)</span>
           </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">Sync History</span>
-            <span>0 External Calls Made</span>
+          <div className="min-w-0">
+            <span className="text-[10px] text-slate-400 block truncate">Sync History</span>
+            <span className="truncate block">0 External Calls Made</span>
           </div>
         </div>
 

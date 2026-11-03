@@ -26,22 +26,10 @@ import { useOFinance } from '../providers/OFinanceContext';
 import { CurrencyCode } from '../../types';
 import { FX_LAST_UPDATED, SIMULATED_FX_RATES_TO_USD } from '../../utils/finance';
 import { ApiClient } from '../../services/api/client';
-
-const NAV_ITEMS = [
-  { path: '/', label: 'Overview', sub: 'Financial Cockpit', icon: LayoutDashboard },
-  { path: '/accounts', label: 'Accounts', sub: 'Banks & Brokerages', icon: Landmark },
-  { path: '/transactions', label: 'Transactions', sub: 'Normalized Ledger Feed', icon: ArrowLeftRight },
-  { path: '/accounting', label: 'Accounting', sub: 'Beancount & Fava', icon: BookOpen },
-  { path: '/portfolio', label: 'Portfolio', sub: 'Holdings & Risk', icon: PieChart },
-  { path: '/market-intelligence', label: 'Market Intelligence', sub: 'Watchlist & Reports', icon: Globe },
-  { path: '/quant-lab', label: 'Quant Lab', sub: 'Strategies & Backtest', icon: FlaskConical },
-  { path: '/agent-center', label: 'AI Assistant Center', sub: 'OFinanceAssistant · 6 Modes', icon: Cpu },
-  { path: '/approvals', label: 'Approval Inbox', sub: 'Human-in-the-Loop', icon: CheckSquare },
-  { path: '/audit', label: 'Audit & Security', sub: 'Append-Only Logs', icon: ShieldCheck },
-  { path: '/settings', label: 'Settings', sub: 'System Configuration', icon: Settings },
-];
+import { useI18n, LocaleSwitcher } from '../../i18n';
 
 export const WorkstationShell: React.FC = () => {
+  const { t, locale } = useI18n();
   const {
     baseCurrency,
     setBaseCurrency,
@@ -66,6 +54,20 @@ export const WorkstationShell: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const navItems = [
+    { path: '/', label: t.nav.overview.main, sub: t.nav.overview.sub, icon: LayoutDashboard },
+    { path: '/accounts', label: t.nav.accounts.main, sub: t.nav.accounts.sub, icon: Landmark },
+    { path: '/transactions', label: t.nav.transactions.main, sub: t.nav.transactions.sub, icon: ArrowLeftRight },
+    { path: '/accounting', label: t.nav.accounting.main, sub: t.nav.accounting.sub, icon: BookOpen },
+    { path: '/portfolio', label: t.nav.portfolio.main, sub: t.nav.portfolio.sub, icon: PieChart },
+    { path: '/market-intelligence', label: t.nav.market.main, sub: t.nav.market.sub, icon: Globe },
+    { path: '/quant-lab', label: t.nav.quant.main, sub: t.nav.quant.sub, icon: FlaskConical },
+    { path: '/agent-center', label: t.nav.assistant.main, sub: t.nav.assistant.sub, icon: Cpu },
+    { path: '/approvals', label: t.nav.approvals.main, sub: t.nav.approvals.sub, icon: CheckSquare },
+    { path: '/audit', label: t.nav.audit.main, sub: t.nav.audit.sub, icon: ShieldCheck },
+    { path: '/settings', label: t.nav.settings.main, sub: t.nav.settings.sub, icon: Settings },
+  ];
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -80,9 +82,9 @@ export const WorkstationShell: React.FC = () => {
   const pendingApprovalsCount = approvalTasks.filter((t) => t.status === 'Pending').length;
 
   const currentNav =
-    NAV_ITEMS.find((item) =>
+    navItems.find((item) =>
       item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
-    ) || NAV_ITEMS[0];
+    ) || navItems[0];
 
   // Global search filter across accounts, holdings, and transactions
   const q = globalSearchQuery.trim().toLowerCase();
@@ -115,40 +117,40 @@ export const WorkstationShell: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100">
-      {/* Top Status Bar (58px height) */}
-      <header className="h-[58px] shrink-0 border-b border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0F1420] px-4 flex items-center justify-between gap-4 z-30">
+      {/* Top Status Bar (Min 60px height, responsive flex alignment) */}
+      <header className="min-h-[60px] py-2 shrink-0 border-b border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0F1420] px-4 flex items-center justify-between gap-3 z-30">
         {/* Left: Brand + Workspace + Demo Banner */}
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2.5 text-left focus:outline-none"
+            className="flex items-center gap-2 text-left focus:outline-none py-1"
           >
-            <div className="w-7 h-7 rounded bg-slate-900 dark:bg-blue-600 text-white font-mono font-bold text-sm flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded bg-slate-900 dark:bg-blue-600 text-white font-mono font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
               O
             </div>
-            <div className="leading-none">
-              <span className="font-display font-bold text-base tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-                O-Finance
+            <div className="leading-tight">
+              <span className="font-display font-bold text-base tracking-tight text-slate-900 dark:text-white whitespace-nowrap block">
+                {t.nav.brandTitle}
               </span>
-              <span className="hidden xl:inline-block ml-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
-                v0.3.2 · Final Frontend Freeze
+              <span className="hidden 2xl:inline-block text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                {t.nav.brandSubtitle}
               </span>
             </div>
           </button>
 
-          <span className="text-slate-300 dark:text-slate-700" aria-hidden="true">
+          <span className="text-slate-300 dark:text-slate-700 hidden md:inline" aria-hidden="true">
             /
           </span>
 
-          <div className="hidden md:flex items-center gap-2 text-xs font-mono text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded whitespace-nowrap">
+          <div className="hidden 2xl:flex items-center gap-1.5 text-[11px] font-mono text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            <span>DEMO MODE · SIMULATED FINANCIAL DATA</span>
+            <span>{t.nav.demoBadge}</span>
           </div>
         </div>
 
-        {/* Center: Global Search */}
-        <div className="relative flex-1 max-w-md">
+        {/* Center: Global Search (compact flexible width) */}
+        <div className="relative w-36 sm:w-48 md:w-56 lg:w-64 shrink min-w-[120px] mx-1">
           <div className="relative flex items-center">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 pointer-events-none" />
             <input
@@ -160,7 +162,7 @@ export const WorkstationShell: React.FC = () => {
                 setGlobalSearchQuery(e.target.value);
                 setSearchOpen(true);
               }}
-              placeholder="Search accounts, tickers (NVDA, VOO), payees, or ledger..."
+              placeholder={t.nav.searchPlaceholder}
               className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-sans"
             />
             {globalSearchQuery && (
@@ -269,9 +271,9 @@ export const WorkstationShell: React.FC = () => {
         </div>
 
         {/* Right: Telemetry, Base Currency Switcher, Sync, Notifications, Theme, Operator */}
-        <div className="flex items-center gap-3 shrink-0 text-xs">
-          {/* Explicit Architecture Telemetry */}
-          <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 text-xs">
+          {/* Explicit Architecture Telemetry (visible on extra wide screens) */}
+          <div className="hidden 2xl:flex items-center gap-2 text-[11px] font-mono">
             {ApiClient.isDemoMode ? (
               <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
@@ -296,7 +298,7 @@ export const WorkstationShell: React.FC = () => {
                 type="button"
                 aria-label={`Set Base Currency ${curr}`}
                 onClick={() => setBaseCurrency(curr)}
-                className={`px-2 py-1 text-[11px] font-mono font-medium rounded transition-colors ${
+                className={`px-1.5 sm:px-2 py-1 text-[11px] font-mono font-medium rounded transition-colors ${
                   baseCurrency === curr
                     ? 'bg-slate-900 text-white dark:bg-blue-600 dark:text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -310,19 +312,26 @@ export const WorkstationShell: React.FC = () => {
           {/* Simulated Sync Button */}
           <button
             type="button"
+            title={isSyncing ? t.nav.syncing : t.nav.syncNow}
             onClick={() => triggerSimulatedSync()}
             disabled={isSyncing}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-medium transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-medium transition-colors whitespace-nowrap"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
-            <span className="hidden sm:inline">{isSyncing ? 'Simulating Sync...' : 'Sync Now (Sim)'}</span>
+            <span className="hidden 2xl:inline">{isSyncing ? t.nav.syncing : t.nav.syncNow}</span>
+            <span className="hidden sm:inline 2xl:hidden">
+              {isSyncing ? (locale === 'zh' ? '同步中' : 'Syncing') : (locale === 'zh' ? '同步' : 'Sync')}
+            </span>
           </button>
+
+          {/* Bilingual Locale Switcher [ EN | 中文 ] */}
+          <LocaleSwitcher />
 
           {/* Notifications / Approval Quick Drawer */}
           <div className="relative">
             <button
               type="button"
-              aria-label="Open System Notifications"
+              aria-label={t.nav.notifications}
               onClick={() => setNotificationsOpen((prev) => !prev)}
               className="relative p-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
             >
@@ -390,17 +399,18 @@ export const WorkstationShell: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/settings')}
-            className="hidden lg:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-left"
+            title={`${t.nav.operator} (${t.nav.operatorRole})`}
+            className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-slate-800 text-left"
           >
-            <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold flex items-center justify-center">
+            <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold flex items-center justify-center shrink-0">
               OP
             </div>
-            <div className="leading-tight">
+            <div className="hidden 2xl:block leading-tight">
               <div className="text-[11px] font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                Local Operator
+                {t.nav.operator}
               </div>
               <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                DEMO IDENTITY
+                {t.nav.operatorRole}
               </div>
             </div>
           </button>
@@ -417,7 +427,7 @@ export const WorkstationShell: React.FC = () => {
           } shrink-0 border-r border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0F1420] flex flex-col justify-between transition-all duration-150`}
         >
           <nav className="p-2 space-y-0.5 overflow-y-auto">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isApprovals = item.path === '/approvals';
               return (
@@ -460,24 +470,24 @@ export const WorkstationShell: React.FC = () => {
             {!sidebarCollapsed && (
               <div className="p-2 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 space-y-1 font-mono">
                 <div className="flex items-center justify-between">
-                  <span>Mode:</span>
+                  <span>{t.nav.modeLabel}</span>
                   <span className="text-amber-600 dark:text-amber-400 font-semibold">SIMULATED</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>FX (GBP/EUR/CNY):</span>
+                  <span>{t.nav.fxLabel}</span>
                   <span className="truncate" title={`GBP: ${SIMULATED_FX_RATES_TO_USD.GBP} | EUR: ${SIMULATED_FX_RATES_TO_USD.EUR} | CNY: ${SIMULATED_FX_RATES_TO_USD.CNY}`}>
                     {SIMULATED_FX_RATES_TO_USD.GBP} / {SIMULATED_FX_RATES_TO_USD.EUR} / {SIMULATED_FX_RATES_TO_USD.CNY}
                   </span>
                 </div>
                 <div className="truncate text-[10px]" title={lastGlobalSync}>
-                  Sync: {lastGlobalSync.slice(5, 16)}
+                  {t.nav.syncLabel} {lastGlobalSync.slice(5, 16)}
                 </div>
               </div>
             )}
 
             <button
               type="button"
-              aria-label={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              aria-label={sidebarCollapsed ? t.nav.expandNav : t.nav.collapseNav}
               onClick={() => setSidebarCollapsed((prev) => !prev)}
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs"
             >
@@ -486,7 +496,7 @@ export const WorkstationShell: React.FC = () => {
               ) : (
                 <>
                   <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Collapse Navigation</span>
+                  <span>{t.nav.collapseNav}</span>
                 </>
               )}
             </button>
@@ -503,13 +513,13 @@ export const WorkstationShell: React.FC = () => {
               <span>{currentNav.sub}</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono text-amber-600 dark:text-amber-400">
-                DEMO MODE · SIMULATED FINANCIAL DATA
+                {t.nav.demoBadge}
               </span>
             </div>
             <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-              <span>Base: {baseCurrency}</span>
+              <span>{t.nav.baseCurrencyLabel} {baseCurrency}</span>
               <span aria-hidden="true">·</span>
-              <span>FX Updated: {FX_LAST_UPDATED}</span>
+              <span>{t.nav.fxUpdatedLabel} {FX_LAST_UPDATED}</span>
             </div>
           </div>
 

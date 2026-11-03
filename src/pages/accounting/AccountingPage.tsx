@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useOFinance } from '../../app/providers/OFinanceContext';
+import { useI18n } from '../../i18n';
 import { formatCurrency, calculateTrialBalance, round2 } from '../../utils/finance';
 import {
   BookOpen,
@@ -80,6 +81,7 @@ const PIPELINE_STEPS = [
 ];
 
 export const AccountingPage: React.FC = () => {
+  const { t } = useI18n();
   const {
     accounts,
     journalEntries,
@@ -141,10 +143,10 @@ export const AccountingPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            Double-Entry Accounting & Beancount Ledger (DEMO)
+            {t.accounting.title}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Plain-text double-entry accounting powered by Beancount architecture with Fava web reporting integration.
+            {t.accounting.subtitle}
           </p>
         </div>
 
@@ -171,7 +173,7 @@ export const AccountingPage: React.FC = () => {
       {/* Accounting Overview Metrics (Assets, Liabilities, Income, Expenses, Equity, Trial Balance) */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 font-mono">
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Total Assets ({baseCurrency})</div>
+          <div className="text-[11px] text-slate-500">{t.accounting.assets} ({baseCurrency})</div>
           <div className="text-base font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalCash + wealthSummary.totalInvestments, baseCurrency)}
           </div>
@@ -181,7 +183,7 @@ export const AccountingPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Total Liabilities</div>
+          <div className="text-[11px] text-slate-500">{t.accounting.liabilities}</div>
           <div className="text-base font-bold text-rose-600 dark:text-rose-400 mt-1 tabular-nums">
             -{formatCurrency(wealthSummary.totalLiabilities, baseCurrency)}
           </div>
@@ -189,7 +191,7 @@ export const AccountingPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">YTD Income (Sim)</div>
+          <div className="text-[11px] text-slate-500">{t.accounting.income}</div>
           <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             $294,180.00
           </div>
@@ -197,7 +199,7 @@ export const AccountingPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">YTD Expenses (Sim)</div>
+          <div className="text-[11px] text-slate-500">{t.accounting.expenses}</div>
           <div className="text-base font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
             $129,485.00
           </div>
@@ -205,7 +207,7 @@ export const AccountingPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Net Equity / Worth</div>
+          <div className="text-[11px] text-slate-500">{t.accounting.equity}</div>
           <div className="text-base font-bold text-blue-600 dark:text-blue-400 mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalNetWorth, baseCurrency)}
           </div>
@@ -213,7 +215,7 @@ export const AccountingPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Trial Balance Residual</div>
+          <div className="text-[11px] text-slate-500">{t.accounting.trialBalance}</div>
           <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             0.00 USD
           </div>

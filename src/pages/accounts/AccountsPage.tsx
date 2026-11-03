@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useOFinance } from '../../app/providers/OFinanceContext';
+import { useI18n } from '../../i18n';
 import { ConnectorConfig } from '../../types';
 import { convertCurrency, formatCurrency } from '../../utils/finance';
 import { RefreshCw, Link2, Unlink, ShieldAlert, CheckCircle2, X, Lock } from 'lucide-react';
 
 export const AccountsPage: React.FC = () => {
+  const { t } = useI18n();
   const {
     accounts,
     connectors,
@@ -41,10 +43,10 @@ export const AccountsPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            Accounts & Institution Connectors (DEMO)
+            {t.accounts.title}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Multi-jurisdiction brokerage and banking accounts across US, UK, and EEA. Read-only by default.
+            {t.accounts.subtitle}
           </p>
         </div>
 
@@ -98,20 +100,22 @@ export const AccountsPage: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[960px]">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/40">
-                <th className="py-2.5 pl-3 pr-2 font-medium">Institution</th>
-                <th className="py-2.5 px-2 font-medium">Account Name</th>
-                <th className="py-2.5 px-2 font-medium">Type</th>
-                <th className="py-2.5 px-1.5 font-medium">Ccy</th>
-                <th className="py-2.5 px-2 font-medium text-right">Balance</th>
-                <th className="py-2.5 px-2 font-medium text-right">Cash</th>
-                <th className="py-2.5 px-2 font-medium text-right">Investments</th>
-                <th className="py-2.5 px-2 font-medium">Last Sync</th>
-                <th className="py-2.5 px-2 font-medium">Status</th>
-                <th className="py-2.5 px-2 font-medium">Freshness</th>
-                <th className="py-2.5 pl-2 pr-3 font-medium text-right">Action</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/70 dark:bg-slate-900/60">
+                <th className="py-2.5 pl-3 pr-2 font-medium">{t.accounts.institution}</th>
+                <th className="py-2.5 px-2 font-medium">{t.accounts.accountName}</th>
+                <th className="py-2.5 px-2 font-medium">{t.accounts.type}</th>
+                <th className="py-2.5 px-1.5 font-medium">{t.accounts.currency}</th>
+                <th className="py-2.5 px-2 font-medium text-right">{t.accounts.balance}</th>
+                <th className="py-2.5 px-2 font-medium text-right">{t.accounts.availableCash}</th>
+                <th className="py-2.5 px-2 font-medium text-right">{t.accounts.investmentValue}</th>
+                <th className="py-2.5 px-2 font-medium">{t.accounts.lastSync}</th>
+                <th className="py-2.5 px-2 font-medium">{t.accounts.status}</th>
+                <th className="py-2.5 px-2 font-medium">{t.accounts.freshness}</th>
+                <th className="sticky right-0 z-10 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 py-2.5 px-3 font-medium text-right shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
+                  {t.accounts.action}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
@@ -179,13 +183,13 @@ export const AccountsPage: React.FC = () => {
                     <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {acc.dataFreshness.replace('Simulated ', 'Sim ')}
                     </td>
-                    <td className="py-2.5 pl-2 pr-3 text-right whitespace-nowrap">
+                    <td className="sticky right-0 z-10 bg-white dark:bg-[#0F1420] border-l border-slate-100 dark:border-slate-800/80 py-2.5 px-3 text-right whitespace-nowrap shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
                       <button
                         type="button"
                         onClick={() => triggerSimulatedSync(acc.institution)}
-                        className="px-2 py-1 text-[11px] font-mono rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
+                        className="px-2.5 py-1 text-[11px] font-mono rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors shadow-xs"
                       >
-                        Sync Now
+                        {t.accounts.syncNow}
                       </button>
                     </td>
                   </tr>

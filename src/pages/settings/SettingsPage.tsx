@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useOFinance } from '../../app/providers/OFinanceContext';
+import { useI18n } from '../../i18n';
 import { CurrencyCode } from '../../types';
-import { Save, RotateCcw, HardDrive, Shield, Server, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Save, RotateCcw, HardDrive, Shield, Server, Info, AlertTriangle, CheckCircle2, Globe } from 'lucide-react';
 import { ApiClient } from '../../services/api/client';
 
 export const SettingsPage: React.FC = () => {
+  const { locale, setLocale, t } = useI18n();
   const { settings, updateSettings, showToast } = useOFinance();
 
   const [formState, setFormState] = useState(settings);
@@ -94,6 +96,22 @@ export const SettingsPage: React.FC = () => {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-slate-500 mb-1 flex items-center gap-1">
+                <Globe className="w-3 h-3 text-blue-500" />
+                <span>UI Language / 界面语言</span>
+              </label>
+              <select
+                aria-label="UI Language / 界面语言"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as 'en' | 'zh')}
+                className="w-full px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium"
+              >
+                <option value="zh">简体中文 (Simplified Chinese)</option>
+                <option value="en">English (US)</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-[11px] text-slate-500 mb-1">Default Base Currency</label>
               <select

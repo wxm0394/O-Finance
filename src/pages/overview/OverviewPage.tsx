@@ -18,6 +18,7 @@ import {
   Legend,
 } from 'recharts';
 import { useOFinance } from '../../app/providers/OFinanceContext';
+import { useI18n } from '../../i18n';
 import { TimeRange, TransactionRecord, AssistantTaskLog } from '../../types';
 import {
   convertCurrency,
@@ -33,6 +34,7 @@ const TIME_RANGES: TimeRange[] = ['1W', '1M', '3M', '6M', '1Y', 'ALL'];
 const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#14B8A6', '#8B5CF6'];
 
 export const OverviewPage: React.FC = () => {
+  const { t } = useI18n();
   const {
     baseCurrency,
     setBaseCurrency,
@@ -133,10 +135,10 @@ export const OverviewPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            Executive Financial Cockpit (DEMO)
+            {t.overview.title}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Consolidated multi-institution balance sheet, deterministic FX aggregation, and AI Agent audit telemetry.
+            {t.overview.subtitle}
           </p>
         </div>
 
@@ -171,7 +173,7 @@ export const OverviewPage: React.FC = () => {
       {/* 5.1 Top Wealth Summary Strip (7 Metrics) */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Total Net Worth (DEMO)</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.totalNetWorth}</div>
           <div className="text-lg font-mono font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalNetWorth, baseCurrency)}
           </div>
@@ -181,7 +183,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Total Cash</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.totalCash}</div>
           <div className="text-lg font-mono font-semibold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalCash, baseCurrency)}
           </div>
@@ -191,7 +193,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Total Investments</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.totalInvestments}</div>
           <div className="text-lg font-mono font-semibold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalInvestments, baseCurrency)}
           </div>
@@ -201,7 +203,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Total Liabilities</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.totalLiabilities}</div>
           <div className="text-lg font-mono font-semibold text-rose-600 dark:text-rose-400 mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalLiabilities, baseCurrency)}
           </div>
@@ -211,7 +213,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Daily P&L (Sim)</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.dailyPnL}</div>
           <div className="text-lg font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {formatCurrency(wealthSummary.dailyPnL, baseCurrency, { showSign: true })}
           </div>
@@ -221,7 +223,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Monthly P&L (Sim)</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.monthlyPnL}</div>
           <div className="text-lg font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {formatCurrency(wealthSummary.monthlyPnL, baseCurrency, { showSign: true })}
           </div>
@@ -231,7 +233,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">Overall Return</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.overview.overallReturn}</div>
           <div className="text-lg font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {formatCurrency(wealthSummary.overallReturn, baseCurrency, { showSign: true })}
           </div>

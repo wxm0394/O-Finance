@@ -113,6 +113,23 @@ export const INITIAL_ACCOUNTS: FinancialAccount[] = [
     region: 'EEA',
     connectorId: 'conn-eea-banks',
   },
+  {
+    id: 'acc-cny-bank',
+    institution: 'Bank of China (Hong Kong)',
+    accountName: 'Cross-Border RMB Settlement & Liquidity (DEMO)',
+    accountNumberMasked: 'BOC****8826-DEMO',
+    accountType: 'Checking',
+    currency: 'CNY',
+    currentBalance: 125000.0,
+    availableCash: 125000.0,
+    investmentValue: 0,
+    liabilityAmount: 0,
+    lastSync: '2026-11-02 12:00:00 UTC',
+    connectionStatus: 'Connected (Simulated)',
+    dataFreshness: 'Simulated 15m Ago',
+    region: 'Global',
+    connectorId: 'conn-boc',
+  },
 ];
 
 export const INITIAL_CONNECTORS: ConnectorConfig[] = [

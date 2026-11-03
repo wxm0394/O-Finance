@@ -290,7 +290,7 @@ export const WorkstationShell: React.FC = () => {
 
           {/* Base Currency Selector */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-0.5">
-            {(['USD', 'GBP', 'EUR'] as CurrencyCode[]).map((curr) => (
+            {(['USD', 'GBP', 'EUR', 'CNY'] as CurrencyCode[]).map((curr) => (
               <button
                 key={curr}
                 type="button"
@@ -464,9 +464,9 @@ export const WorkstationShell: React.FC = () => {
                   <span className="text-amber-600 dark:text-amber-400 font-semibold">SIMULATED</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>FX (GBP/EUR):</span>
-                  <span>
-                    {SIMULATED_FX_RATES_TO_USD.GBP} / {SIMULATED_FX_RATES_TO_USD.EUR}
+                  <span>FX (GBP/EUR/CNY):</span>
+                  <span className="truncate" title={`GBP: ${SIMULATED_FX_RATES_TO_USD.GBP} | EUR: ${SIMULATED_FX_RATES_TO_USD.EUR} | CNY: ${SIMULATED_FX_RATES_TO_USD.CNY}`}>
+                    {SIMULATED_FX_RATES_TO_USD.GBP} / {SIMULATED_FX_RATES_TO_USD.EUR} / {SIMULATED_FX_RATES_TO_USD.CNY}
                   </span>
                 </div>
                 <div className="truncate text-[10px]" title={lastGlobalSync}>

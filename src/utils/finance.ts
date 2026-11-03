@@ -14,8 +14,9 @@ import {
  */
 export const SIMULATED_FX_RATES_TO_USD: Record<CurrencyCode, number> = {
   USD: 1.0,
-  GBP: 1.285, // 1 GBP = 1.285 USD
-  EUR: 1.092, // 1 EUR = 1.092 USD
+  GBP: 1.285, // 1 GBP = 1.285 USD (SIMULATED FX DATA)
+  EUR: 1.092, // 1 EUR = 1.092 USD (SIMULATED FX DATA)
+  CNY: 0.14,  // 1 CNY = 0.140 USD (SIMULATED FX DATA: 1 USD ≈ 7.1429 CNY)
 };
 
 export const FX_LAST_UPDATED = '2026-11-02 14:30:00 UTC (SIMULATED FX)';
@@ -53,6 +54,7 @@ export function formatCurrency(
     USD: '$',
     GBP: '£',
     EUR: '€',
+    CNY: '¥',
   };
   const symbol = symbols[currency] || '$';
   const absVal = Math.abs(amount);
@@ -113,6 +115,7 @@ export function calculateWealthSummary(
     USD: 0,
     GBP: 0,
     EUR: 0,
+    CNY: 0,
   };
 
   for (const acc of accounts) {
@@ -156,11 +159,11 @@ export function calculateWealthSummary(
 
   const totalPositiveExposure = Math.max(
     1,
-    byNativeCurrency.USD + byNativeCurrency.GBP + byNativeCurrency.EUR
+    byNativeCurrency.USD + byNativeCurrency.GBP + byNativeCurrency.EUR + byNativeCurrency.CNY
   );
 
   const currencyExposure: { currency: CurrencyCode; amountInBase: number; weightPct: number }[] = (
-    ['USD', 'GBP', 'EUR'] as CurrencyCode[]
+    ['USD', 'GBP', 'EUR', 'CNY'] as CurrencyCode[]
   ).map((curr) => ({
     currency: curr,
     amountInBase: round2(byNativeCurrency[curr]),
@@ -502,11 +505,13 @@ export function calculateTrialBalance(
 
       // In base currency conversion for economic balance
       let amountInBase = 0;
-      if (p.costBasis && p.costBasis.includes('@') && p.costBasis.includes('USD')) {
-        const matchRate = p.costBasis.match(/@\s*([\d.]+)\s*USD/);
-        if (matchRate && matchRate[1]) {
+      if (p.costBasis && p.costBasis.includes('@')) {
+        const matchRate = p.costBasis.match(/@\s*([\d.]+)\s*([A-Za-z]{3})/);
+        if (matchRate && matchRate[1] && matchRate[2]) {
           const customRate = parseFloat(matchRate[1]);
-          amountInBase = p.amount * customRate;
+          const basisCurr = matchRate[2].toUpperCase() as CurrencyCode;
+          const amountInBasis = p.amount * customRate;
+          amountInBase = convertCurrency(amountInBasis, basisCurr, baseCurrency);
         } else {
           amountInBase = convertCurrency(p.amount, p.currency, baseCurrency);
         }

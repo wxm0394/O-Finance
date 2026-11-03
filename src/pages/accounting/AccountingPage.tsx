@@ -94,7 +94,7 @@ export const AccountingPage: React.FC = () => {
   const [activeView, setActiveView] = useState<'ledger' | 'statements' | 'reconciliation'>('ledger');
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>('JE-2026-001');
   const [favaModalOpen, setFavaModalOpen] = useState(false);
-  const [selectedCurrencyFilter, setSelectedCurrencyFilter] = useState<'ALL' | 'USD' | 'GBP' | 'EUR'>('ALL');
+  const [selectedCurrencyFilter, setSelectedCurrencyFilter] = useState<'ALL' | 'USD' | 'GBP' | 'EUR' | 'CNY'>('ALL');
   const [includeDraftsInTrialBalance, setIncludeDraftsInTrialBalance] = useState(true);
 
   useEffect(() => {
@@ -522,7 +522,7 @@ export const AccountingPage: React.FC = () => {
             {/* Currency Filter Tabs */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1 border-b border-slate-200 dark:border-slate-800 pb-2">
               <span className="text-[11px] text-slate-400 font-mono mr-1">Currency Filter:</span>
-              {(['ALL', 'USD', 'GBP', 'EUR'] as const).map((curr) => {
+              {(['ALL', 'USD', 'GBP', 'EUR', 'CNY'] as const).map((curr) => {
                 const summary = trialBalanceResult.currencySummaries.find((s) => s.currency === curr);
                 const isSelected = selectedCurrencyFilter === curr;
                 return (
@@ -543,7 +543,7 @@ export const AccountingPage: React.FC = () => {
             </div>
 
             {/* Per-Currency Verification Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs font-mono">
               {trialBalanceResult.currencySummaries.map((summary) => (
                 <div
                   key={summary.currency}

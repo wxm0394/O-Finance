@@ -305,7 +305,7 @@ export function executeDeterministicDemoAssistantRun(
       { label: `Total Investments (${baseCurrency})`, value: formatCurrency(wealth.totalInvestments, baseCurrency), delta: `${holdings.length} Holdings` },
       { label: `Overall Total Return`, value: formatCurrency(wealth.overallReturn, baseCurrency, { showSign: true }), delta: `${wealth.overallReturnPct}% Return` },
       { label: `Total Cash Reserves`, value: formatCurrency(wealth.totalCash, baseCurrency), delta: 'Multi-Currency' },
-      { label: 'Non-USD FX Exposure', value: `${nonUsdWeightPct}%`, delta: 'GBP + EUR' },
+      { label: 'Non-USD FX Exposure', value: `${nonUsdWeightPct}%`, delta: 'GBP, EUR & CNY' },
     ];
   } else if (payload.task_mode === 'Quantitative Research') {
     const latestBt = backtests[0];

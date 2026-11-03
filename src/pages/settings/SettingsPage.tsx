@@ -107,6 +107,7 @@ export const SettingsPage: React.FC = () => {
                 <option value="USD">USD ($) — US Dollar</option>
                 <option value="GBP">GBP (£) — British Pound</option>
                 <option value="EUR">EUR (€) — Euro</option>
+                <option value="CNY">CNY (¥) — Chinese Yuan</option>
               </select>
             </div>
 
@@ -137,6 +138,7 @@ export const SettingsPage: React.FC = () => {
                 <option value="America/New_York (EST/EDT)">America/New_York (NYSE)</option>
                 <option value="Europe/London (GMT/BST)">Europe/London (LSE)</option>
                 <option value="Europe/Berlin (CET/CEST)">Europe/Berlin (XETRA)</option>
+                <option value="Asia/Shanghai (CST)">Asia/Shanghai (SSE / SZSE / HKEX)</option>
               </select>
             </div>
 

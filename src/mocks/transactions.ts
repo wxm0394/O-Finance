@@ -658,6 +658,26 @@ export const INITIAL_TRANSACTIONS: TransactionRecord[] = [
     rawSourceJson: '{"provider":"PLAID_INV_DEMO","symbol":"TSM","side":"BUY","shares":60,"price":162.00}',
     dataSource: 'Plaid Investments (Simulated)',
   },
+  {
+    id: 'TX-2026-031',
+    date: '2026-10-18',
+    institution: 'Bank of China (Hong Kong)',
+    accountId: 'acc-cny-bank',
+    accountName: 'Cross-Border RMB Settlement & Liquidity (DEMO)',
+    description: 'Tencent Cloud GPU & High-Speed Market Gateway Hosting',
+    payee: 'Tencent Cloud Computing Ltd',
+    fees: 0,
+    amount: -3500.0,
+    currency: 'CNY',
+    type: 'Withdrawal',
+    category: 'Expenses:Technology:CloudHosting',
+    direction: 'Outflow',
+    status: 'Settled',
+    ledgerStatus: 'Posted',
+    journalEntryId: 'JE-2026-010',
+    rawSourceJson: '{"bank":"BOC_HK_DEMO","merchant":"TENCENT CLOUD","amount":-3500.00,"currency":"CNY"}',
+    dataSource: 'Bank of China Open API (Simulated)',
+  },
 ];
 
 export const INITIAL_JOURNAL_ENTRIES: JournalEntry[] = [
@@ -841,5 +861,24 @@ export const INITIAL_JOURNAL_ENTRIES: JournalEntry[] = [
   confidence: "0.81"
   Expenses:Healthcare:Diagnostics              640.00 USD
   Assets:Banks:Checking:USBank                -640.00 USD`,
+  },
+  {
+    id: 'JE-2026-010',
+    date: '2026-10-18',
+    flag: '*',
+    payee: 'Tencent Cloud Computing Ltd',
+    narration: 'Quant Infrastructure & AI Server Hosting (Shenzhen)',
+    transactionId: 'TX-2026-031',
+    status: 'Posted',
+    confidence: 0.99,
+    sourceDocument: 'boc-cny-20261018.json (Simulated)',
+    postings: [
+      { account: 'Expenses:Technology:CloudHosting', amount: 3500.0, currency: 'CNY' },
+      { account: 'Assets:Banks:Checking:BOC', amount: -3500.0, currency: 'CNY' },
+    ],
+    rawBeancount: `2026-10-18 * "Tencent Cloud Computing Ltd" "Quant Infrastructure & AI Server Hosting"
+  id: "TX-2026-031"
+  Expenses:Technology:CloudHosting            3500.00 CNY
+  Assets:Banks:Checking:BOC                  -3500.00 CNY`,
   },
 ];

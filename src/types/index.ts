@@ -1,4 +1,4 @@
-export type CurrencyCode = 'USD' | 'GBP' | 'EUR';
+export type CurrencyCode = 'USD' | 'GBP' | 'EUR' | 'CNY';
 
 export type AccountType = 'Brokerage' | 'Checking' | 'Savings' | 'CreditCard' | 'Crypto' | 'Loan';
 

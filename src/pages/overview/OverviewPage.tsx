@@ -250,6 +250,8 @@ export const OverviewPage: React.FC = () => {
           <span>1 GBP = {SIMULATED_FX_RATES_TO_USD.GBP.toFixed(4)} USD</span>
           <span>·</span>
           <span>1 EUR = {SIMULATED_FX_RATES_TO_USD.EUR.toFixed(4)} USD</span>
+          <span>·</span>
+          <span>1 CNY = {SIMULATED_FX_RATES_TO_USD.CNY.toFixed(4)} USD</span>
         </div>
         <div className="text-slate-500 dark:text-slate-400">{FX_LAST_UPDATED}</div>
       </div>
@@ -437,7 +439,7 @@ export const OverviewPage: React.FC = () => {
               Currency Exposure ({baseCurrency})
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              USD, GBP & EUR Net Asset Breakdown
+              USD, GBP, EUR & CNY Net Asset Breakdown
             </p>
           </div>
 

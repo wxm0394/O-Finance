@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { AssistantTaskMode } from '../../types';
 import { GUARDRAIL_INTERCEPTION_LOGS } from '../../mocks/assistant';
+import { ApiClient } from '../../services/api/client';
 import {
   Cpu,
   Send,
@@ -117,7 +118,7 @@ export const AgentCenterPage: React.FC = () => {
               AI Assistant Center · OFinanceAssistant (DEMO)
             </h1>
             <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono text-[11px] font-semibold">
-              v0.3.1 · Demo Adapter Active (FastAPI Harness Pending)
+              v0.3.2 · Demo Adapter Active (FastAPI Harness Pending)
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -150,6 +151,28 @@ export const AgentCenterPage: React.FC = () => {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Explicit Runtime Mode Delineation Banner */}
+      <div className={`p-3.5 rounded border text-xs flex flex-wrap items-center justify-between gap-3 ${
+        ApiClient.isDemoMode
+          ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+          : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+      }`}>
+        <div className="flex items-center gap-2.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${ApiClient.isDemoMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+          <span className="font-bold font-mono">
+            ACTIVE RUNTIME: {ApiClient.isDemoMode ? 'DEMO ADAPTER (DETERMINISTIC SIMULATION)' : 'LOCAL FASTAPI (PYDANTIC AI + GEMINI)'}
+          </span>
+          <span className="text-[11px] text-slate-600 dark:text-slate-300">
+            {ApiClient.isDemoMode
+              ? 'Executing all 6 task modes locally over in-memory dataset with 0 real tokens billed.'
+              : `Connected to FastAPI server at ${ApiClient.baseUrl}`}
+          </span>
+        </div>
+        <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+          {ApiClient.isDemoMode ? 'VITE_DEMO_MODE=true · No LLM API Call' : 'VITE_DEMO_MODE=false · Live Gemini Call'}
         </div>
       </div>
 

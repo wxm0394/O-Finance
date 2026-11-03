@@ -25,6 +25,7 @@ import {
 import { useOFinance } from '../providers/OFinanceContext';
 import { CurrencyCode } from '../../types';
 import { FX_LAST_UPDATED, SIMULATED_FX_RATES_TO_USD } from '../../utils/finance';
+import { ApiClient } from '../../services/api/client';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Overview', sub: 'Financial Cockpit', icon: LayoutDashboard },
@@ -131,7 +132,7 @@ export const WorkstationShell: React.FC = () => {
                 O-Finance
               </span>
               <span className="hidden xl:inline-block ml-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
-                v0.3.1 · Local Workstation
+                v0.3.2 · Final Frontend Freeze
               </span>
             </div>
           </button>
@@ -270,10 +271,21 @@ export const WorkstationShell: React.FC = () => {
         {/* Right: Telemetry, Base Currency Switcher, Sync, Notifications, Theme, Operator */}
         <div className="flex items-center gap-3 shrink-0 text-xs">
           {/* Explicit Architecture Telemetry */}
-          <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            <span>Runtime: Demo Adapter</span>
-            <span aria-hidden="true">·</span>
-            <span>Key: Unverified (Sim)</span>
+          <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono">
+            {ApiClient.isDemoMode ? (
+              <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span>DEMO ADAPTER (Simulation)</span>
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>LOCAL FASTAPI (Connected)</span>
+              </span>
+            )}
+            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              {ApiClient.isDemoMode ? 'Key: Unverified (Demo)' : 'Key: Verified (Backend)'}
+            </span>
           </div>
 
           {/* Base Currency Selector */}

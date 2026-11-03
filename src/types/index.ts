@@ -316,6 +316,25 @@ export interface AssistantTaskLog {
   outputPreview: string;
 }
 
+/**
+ * Strict snake_case DTO representation matching the FastAPI REST API Contract (`/api/v1/assistant/*`).
+ */
+export interface AssistantTaskLogDto {
+  id: string;
+  timestamp: string;
+  assistant_name: 'OFinanceAssistant';
+  task_mode: AssistantTaskMode;
+  execution_origin: AssistantExecutionOrigin;
+  trigger: 'User Prompt' | 'Scheduled Audit' | 'Sync Hook' | 'Manual Trigger';
+  task_summary: string;
+  tools_invoked: string[];
+  duration_ms: number;
+  tokens_used: number | null;
+  estimated_cost_usd: number | null;
+  status: 'Success (Demo Adapter)' | 'Success (Live Runtime)' | 'Approval Requested' | 'Warning Flagged';
+  output_preview: string;
+}
+
 export interface AssistantToolTimelineStep {
   stepNumber: number;
   toolName: string;
@@ -324,6 +343,49 @@ export interface AssistantToolTimelineStep {
   status: 'Completed (Demo Deterministic)' | 'Completed (Live Runtime)';
   deterministicFinding: string;
   durationMs: number;
+}
+
+/**
+ * Strict snake_case DTO representation of tool timeline steps.
+ */
+export interface AssistantToolTimelineStepDto {
+  step_number: number;
+  tool_name: string;
+  category: 'Read-Only' | 'Deterministic Computation' | 'Drafting' | 'Governance';
+  call_signature: string;
+  status: 'Completed (Demo Deterministic)' | 'Completed (Live Runtime)';
+  deterministic_finding: string;
+  duration_ms: number;
+}
+
+/**
+ * REST API Wire Contract for POST /api/v1/assistant/run
+ */
+export interface AssistantRunRequestDto {
+  task_mode: AssistantTaskMode;
+  prompt: string;
+  user_input?: string;
+  base_currency?: CurrencyCode;
+  permitted_data_scope?: string;
+  output_format?: string;
+  approval_policy?: string;
+}
+
+export interface AssistantRunResponseDto {
+  task_id: string;
+  assistant_name: 'OFinanceAssistant';
+  task_mode: AssistantTaskMode;
+  execution_origin: AssistantExecutionOrigin;
+  timestamp: string;
+  status: string;
+  assistant_reply: string;
+  content: string;
+  duration_ms: number;
+  tokens_used: number | null;
+  estimated_cost_usd: number | null;
+  tool_timeline: AssistantToolTimelineStepDto[];
+  structured_metrics: { label: string; value: string; delta?: string }[];
+  task_log: AssistantTaskLogDto;
 }
 
 export interface PlaygroundMessage {

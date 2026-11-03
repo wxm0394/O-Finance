@@ -67,7 +67,7 @@ The frontend service layer (`src/services/index.ts`) supports two execution mode
    - `VITE_DEMO_MODE=true` (or unset)
    - `AssistantService.runTask()` runs `executeDeterministicDemoAssistantRun()`, which computes real-time figures from the in-memory `accounts`, `holdings`, `transactions`, and `journalEntries` state via `src/utils/finance.ts` and records `tokensUsed: null` / `estimatedCostUSD: null`.
 2. **Local FastAPI + Pydantic AI Mode (Phase 2 on Kali Linux)**:
-   - Set `VITE_DEMO_MODE=false` and `VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1` when starting the frontend.
+   - Set `VITE_DEMO_MODE=false` and `VITE_API_BASE_URL=http://127.0.0.1:8000` when starting the frontend. (The client also safely normalizes `http://127.0.0.1:8000/api/v1` if provided).
    - `AssistantService.runTask()` sends `POST http://127.0.0.1:8000/api/v1/assistant/run` to the local FastAPI + Pydantic AI + Gemini backend.
 
 ```bash
@@ -78,5 +78,5 @@ fava ~/o-finance/ledger/main.beancount --port 5000
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 # 3. Start O-Finance Frontend Workstation connected to Local FastAPI (Port 3000)
-VITE_DEMO_MODE=false VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1 bun run dev
+VITE_DEMO_MODE=false VITE_API_BASE_URL=http://127.0.0.1:8000 bun run dev
 ```

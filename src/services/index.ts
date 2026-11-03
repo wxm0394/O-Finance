@@ -46,6 +46,8 @@ import {
 export interface AssistantRunRequestPayload {
   task_mode: AssistantTaskMode;
   user_input: string;
+  prompt?: string;
+  base_currency?: CurrencyCode;
   permitted_data_scope: string;
   output_format: string;
   approval_policy: string;
@@ -64,13 +66,55 @@ export interface AssistantDemoSnapshotContext {
 export interface AssistantRunResponsePayload {
   task_id: string;
   assistant: 'OFinanceAssistant';
+  assistant_name: 'OFinanceAssistant';
   task_mode: AssistantTaskMode;
   execution_origin: 'DEMO_ADAPTER' | 'LOCAL_FASTAPI_GEMINI';
   timestamp: string;
+  status: string;
   content: string;
+  assistant_reply: string;
+  duration_ms: number;
+  tokens_used: number | null;
+  estimated_cost_usd: number | null;
   tool_timeline: AssistantToolTimelineStep[];
   structured_metrics: { label: string; value: string; delta?: string }[];
   task_log: AssistantTaskLog;
+}
+
+export function toAssistantTaskLogDto(log: AssistantTaskLog): import('../types').AssistantTaskLogDto {
+  return {
+    id: log.id,
+    timestamp: log.timestamp,
+    assistant_name: log.assistantName,
+    task_mode: log.taskMode,
+    execution_origin: log.executionOrigin,
+    trigger: log.trigger,
+    task_summary: log.taskSummary,
+    tools_invoked: log.toolsInvoked,
+    duration_ms: log.durationMs,
+    tokens_used: log.tokensUsed,
+    estimated_cost_usd: log.estimatedCostUSD,
+    status: log.status,
+    output_preview: log.outputPreview,
+  };
+}
+
+export function fromAssistantTaskLogDto(dto: import('../types').AssistantTaskLogDto): AssistantTaskLog {
+  return {
+    id: dto.id,
+    timestamp: dto.timestamp,
+    assistantName: dto.assistant_name,
+    taskMode: dto.task_mode,
+    executionOrigin: dto.execution_origin,
+    trigger: dto.trigger,
+    taskSummary: dto.task_summary,
+    toolsInvoked: dto.tools_invoked,
+    durationMs: dto.duration_ms,
+    tokensUsed: dto.tokens_used,
+    estimatedCostUSD: dto.estimated_cost_usd,
+    status: dto.status,
+    outputPreview: dto.output_preview,
+  };
 }
 
 /**
@@ -81,7 +125,7 @@ export interface AssistantRunResponsePayload {
  * - Explicitly sets `tokensUsed: null` and `estimatedCostUSD: null` so simulated runs are never
  *   disguised as real Gemini API token consumption or real model billing.
  */
-function executeDeterministicDemoAssistantRun(
+export function executeDeterministicDemoAssistantRun(
   payload: AssistantRunRequestPayload,
   ctx: AssistantDemoSnapshotContext
 ): AssistantRunResponsePayload {
@@ -411,10 +455,16 @@ function executeDeterministicDemoAssistantRun(
   return {
     task_id: taskId,
     assistant: 'OFinanceAssistant',
+    assistant_name: 'OFinanceAssistant',
     task_mode: payload.task_mode,
     execution_origin: 'DEMO_ADAPTER',
     timestamp: nowStr,
+    status: 'Success (Demo Adapter)',
     content,
+    assistant_reply: content,
+    duration_ms: totalDurationMs,
+    tokens_used: null,
+    estimated_cost_usd: null,
     tool_timeline: toolTimeline,
     structured_metrics: structuredMetrics,
     task_log: taskLog,

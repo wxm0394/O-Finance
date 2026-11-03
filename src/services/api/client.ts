@@ -33,13 +33,34 @@ export interface ApiResponseEnvelope<T> {
   };
 }
 
-const isDemo = import.meta.env.VITE_DEMO_MODE !== 'false';
+const env: Record<string, string | undefined> =
+  typeof import.meta !== 'undefined' && (import.meta as any).env
+    ? (import.meta as any).env
+    : typeof process !== 'undefined' && process.env
+    ? process.env
+    : {};
+
+const isDemo = env.VITE_DEMO_MODE !== 'false';
+
+/**
+ * Normalizes the API Base URL so that both `http://127.0.0.1:8000` and `http://127.0.0.1:8000/api/v1`
+ * resolve without double-prefixing `/api/v1/api/v1`.
+ */
+export function resolveEndpointUrl(baseUrl: string, endpoint: string): string {
+  const cleanBase = baseUrl.trim().replace(/\/+$/, '');
+  const cleanEndpoint = endpoint.trim().replace(/^\/+/, '');
+
+  if (cleanBase.endsWith('/api/v1') && cleanEndpoint.startsWith('api/v1/')) {
+    return `${cleanBase}/${cleanEndpoint.slice('api/v1/'.length)}`;
+  }
+  return `${cleanBase}/${cleanEndpoint}`;
+}
 
 export const apiClientConfig: ApiClientConfig = {
   demoMode: isDemo,
   runtimeMode: isDemo ? 'DEMO' : 'LOCAL_FASTAPI',
-  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
-  clientVersion: 'Desktop-Web-v0.3.1',
+  baseUrl: (env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, ''),
+  clientVersion: 'Desktop-Web-v0.3.2',
 };
 
 export async function simulateNetworkDelay<T>(data: T, ms = 120): Promise<T> {
@@ -71,7 +92,9 @@ export class ApiClient {
       return simulateNetworkDelay(result, 120);
     }
 
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
+    const fullUrl = resolveEndpointUrl(this.baseUrl, endpoint);
+
+    const res = await fetch(fullUrl, {
       ...options,
       headers: {
         'Content-Type': 'application/json',

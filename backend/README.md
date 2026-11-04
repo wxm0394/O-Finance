@@ -58,7 +58,8 @@ backend/
 │   ├── test_assistant_status.py    # Assistant 状态与 6 模式验证
 │   ├── test_assistant_config.py    # 密钥绝不泄漏测试
 │   ├── test_assistant_run.py       # Run 契约与非法 Task Mode 拦截
-│   └── test_database.py            # 数据库未连接时的诚实状态验证
+│   ├── test_database.py            # 数据库未连接时的诚实状态验证
+│   └── test_security.py            # 默认拒绝白名单、任务隔离与审计哈希链验证
 ├── .env.example                    # 环境变量模版 (绝不含真实密钥)
 ├── alembic.ini                     # Alembic 配置文件
 ├── pyproject.toml                  # 项目依赖与工具链配置
@@ -153,6 +154,7 @@ pytest -v
 - `test_assistant_config.py`: 确保 `GEMINI_API_KEY` 绝不泄漏到前端响应。
 - `test_assistant_run.py`: 验证请求校验、拦截非法任务模式（如未授权执行模式）、返回 `scaffold_not_implemented` 契约状态。
 - `test_database.py`: 验证数据库连接探针逻辑，杜绝虚假报告连接成功。
+- `test_security.py`: 验证 Default-Deny 默认拒绝机制、6 大模式隔离、人工审批阻断以及审计日志 SHA-256 哈希链防篡改。
 
 ---
 

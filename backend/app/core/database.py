@@ -5,6 +5,7 @@ and explicit database connectivity verification.
 """
 
 from typing import AsyncGenerator, Optional, Tuple
+import asyncio
 import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -98,7 +99,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def check_database_connection(timeout_seconds: float = 2.0) -> Tuple[bool, str]:
     """
-    Executes a real ping (SELECT 1) against the database.
+    Executes a real ping (SELECT 1) against the database with strict timeout.
     Returns (is_connected, status_detail).
     NEVER reports success if database is unconfigured or unreachable.
     """
@@ -109,13 +110,21 @@ async def check_database_connection(timeout_seconds: float = 2.0) -> Tuple[bool,
     if engine is None:
         return False, "Async engine failed to initialize from DATABASE_URL"
 
-    try:
+    async def _ping_db() -> int:
         async with engine.connect() as conn:
             result = await conn.execute(text("SELECT 1"))
-            val = result.scalar()
-            if val == 1:
-                return True, "PostgreSQL reachable (SELECT 1 successful)"
-            return False, f"Unexpected query response from database: {val}"
+            return result.scalar()
+
+    try:
+        val = await asyncio.wait_for(_ping_db(), timeout=timeout_seconds)
+        if val == 1:
+            return True, "PostgreSQL reachable (SELECT 1 successful)"
+        return False, f"Unexpected query response from database: {val}"
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Database connectivity check timed out after %.1fs", timeout_seconds
+        )
+        return False, f"PostgreSQL connection timed out after {timeout_seconds:.1f}s"
     except Exception as e:
         logger.warning("Database connectivity check failed: %s", str(e))
         return False, f"PostgreSQL connection error: {type(e).__name__}"

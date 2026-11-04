@@ -7,7 +7,8 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-verify:
+  frontend-verify:
+    name: Frontend Verification (Bun + Vite)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -34,3 +35,32 @@ jobs:
 
       - name: Build production bundle
         run: bun run build
+
+  backend-test:
+    name: Backend Verification (Python 3.12 + FastAPI + Pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Verify Python syntax
+        run: |
+          python -m py_compile app/main.py app/core/*.py app/schemas/*.py app/models/*.py app/services/*.py app/api/v1/*.py app/assistant/*.py app/ledger/*.py tests/*.py migrations/*.py migrations/versions/*.py
+
+      - name: Run backend pytest suite
+        run: pytest -v

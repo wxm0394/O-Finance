@@ -16,7 +16,7 @@
 ## 1. Core Architectural Principles
 
 1. **Local-First Sovereignty**: Financial databases, Beancount plain-text ledgers, and API credentials reside on the operator's local workstation (Kali Linux / Debian target).
-2. **Deterministic Financial Engine**: Balances, FX conversions (`USD`, `GBP`, `EUR`), per-currency double-entry trial balances (`calculateTrialBalance`), unrealized P&L, and backtest Sharpe/drawdown metrics are computed exclusively by deterministic TypeScript/Python functions (`src/utils/finance.ts`)—never by LLM mental arithmetic.
+2. **Deterministic Financial Engine**: Balances, FX conversions (`USD`, `GBP`, `EUR`, `CNY`), per-currency double-entry trial balances (`calculateTrialBalance`), unrealized P&L, and backtest Sharpe/drawdown metrics are computed exclusively by deterministic TypeScript/Python functions (`src/utils/finance.ts`)—never by LLM mental arithmetic.
 3. **Single Assistant Architecture (`OFinanceAssistant`)**:
    - **One AI Assistant Only**: `OFinanceAssistant` designed for a single shared **Pydantic AI** runtime.
    - **Six Task Mode Configuration Profiles**: `Accounting`, `Portfolio Analysis`, `Research`, `Quantitative Research`, `Audit`, and `Risk Analysis`.
@@ -35,10 +35,10 @@
 
 | Route | Module | Key Capabilities |
 | :--- | :--- | :--- |
-| `/` | **Overview** | Net worth reconciliation (`Cash + Investments - Liabilities`), 12M performance vs benchmark, cash flow, currency exposure (`USD/GBP/EUR`), account health, and activity inspector. |
+| `/` | **Overview** | Net worth reconciliation (`Cash + Investments - Liabilities`), 12M performance vs benchmark, cash flow, currency exposure (`USD/GBP/EUR/CNY`), account health, and activity inspector. |
 | `/accounts` | **Accounts** | 6 multi-jurisdiction demo accounts (IBKR, Schwab, Firstrade, US/UK/EEA Banks) + 7 connector cards with simulated state cycling. |
 | `/transactions` | **Transactions** | 32 normalized transactions, cross-account internal transfer matching (`XFER-2026-881`, `XFER-2026-742`), raw source JSON inspector, and CSV export. |
-| `/accounting` | **Accounting** | 5-root Beancount chart of accounts, expandable journal entries, **per-currency Trial Balance verification** (USD, GBP, EUR), balance sheet, income statement, reconciliation table, and Fava placeholder modal. |
+| `/accounting` | **Accounting** | 5-root Beancount chart of accounts, expandable journal entries, **per-currency Trial Balance verification** (USD, GBP, EUR, CNY), balance sheet, income statement, reconciliation table, and Fava placeholder modal. |
 | `/portfolio` | **Portfolio** | 17 holdings across 4 accounts, concentration warnings, asset/sector/country/currency breakdown, dividend summary, and position drawer. |
 | `/market-intelligence` | **Market Intelligence** | Global watchlist, fundamental/macro research briefings, economic calendar, and independent `Daily Analysis Connector` status panel. |
 | `/quant-lab` | **Quant Lab** | 5 systematic strategy templates, parameterized deterministic backtest runner (commission & slippage bps), and 10 historical experiment logs. |

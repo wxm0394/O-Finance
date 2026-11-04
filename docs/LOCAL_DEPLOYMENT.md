@@ -1,82 +1,99 @@
-# O-Finance Local Deployment Guide (Kali Linux / Debian Workstation · v0.3.1)
+# O-Finance Local Deployment Guide (Kali Linux / Debian Workstation · v0.4.0)
 
-> **IMPORTANT IMPLEMENTATION STATUS (v0.3.1)**:
-> - **Current Repository Contents (Phase 1 Complete)**: This repository currently contains the **Frontend Workstation (`src/`)**, deterministic financial math library (`src/utils/finance.ts`), unit test suite (`src/utils/finance.test.ts`), and the Dual-Mode API client (`src/services/index.ts`).
-> - **Target Local Backend (`backend/` — Phase 2 Target Specification, Not Yet Present in Repo)**: The `backend/`, `ledger/`, and `data/` directories shown below represent the **Phase 2 Local Kali Linux Target Architecture** to be implemented after cloning this repository to your local Kali Linux workstation. Do not assume `backend/` is already bundled inside this frontend repository.
+> **IMPLEMENTATION STATUS (v0.4.0 · Phase 2.1 Backend Foundation Complete)**:
+> - **Frontend Workstation (`src/`)**: React 19 + TypeScript + Vite, bilingual (EN/中文), supporting 4 base currencies (`USD`, `GBP`, `EUR`, `CNY`), and Dual-Mode API client (`src/services/index.ts`).
+> - **Local Python Backend (`backend/` · Present in Repo)**: Python 3.12+ FastAPI application, Pydantic v2 snake_case DTOs, SQLAlchemy 2.x Async Engine + psycopg 3, Alembic migrations, and Default-Deny security guards.
+> - **Target Local Stores**:
+>   - PostgreSQL: Transactional records, accounts, approval tasks, and append-only SHA-256 audit logs.
+>   - Beancount (`ledger/`): Authoritative plain-text double-entry ledger (Phase 2.2 integration).
+>   - DuckDB + Parquet (`data/`): Analytical & quantitative research dataset (Phase 2.2 integration).
 
 ---
 
-## 1. Target Local Directory Layout (Phase 2 on Kali Linux)
-
-When setting up the full local stack on Kali Linux, organize the workspace as follows:
+## 1. Directory Structure
 
 ```text
-~/o-finance/
-├── frontend/                  # [PRESENT IN REPO] React + TypeScript + Vite workstation UI (v0.3.1)
-├── backend/                   # [PHASE 2 TARGET — TO BE CREATED LOCALLY] Python 3.12 + FastAPI + Pydantic AI
+o-finance/
+├── src/                       # React 19 + TypeScript + Vite workstation UI (v0.4.0)
+├── backend/                   # Python 3.12 + FastAPI + SQLAlchemy 2.x + Pydantic v2
 │   ├── app/
-│   │   ├── assistant/         # Single OFinanceAssistant (Pydantic AI) & 6 Task Mode profiles
-│   │   ├── routers/           # /api/v1/assistant/*, /accounts, /ledger, /quant
-│   │   ├── services/          # Deterministic financial & DuckDB engines
-│   │   └── main.py
-│   └── pyproject.toml
-├── ledger/                    # [PHASE 2 TARGET — LOCAL LEDGER]
-│   └── main.beancount         # Authoritative plain-text double-entry ledger
-└── data/                      # [PHASE 2 TARGET — LOCAL DATA STORE]
-    ├── ofinance.db            # PostgreSQL / SQLite transactional & audit store
-    └── market_ohlcv.parquet   # DuckDB / Parquet quantitative research dataset
+│   │   ├── main.py            # FastAPI entry point, CORS, /healthz
+│   │   ├── core/              # Config (pydantic-settings), Security Guard (Default-Deny), Database (SQLAlchemy 2.x)
+│   │   ├── api/v1/            # /api/v1/assistant/* (status, config, run)
+│   │   ├── schemas/           # Pydantic v2 DTOs (snake_case)
+│   │   ├── models/            # SQLAlchemy 2.x models (PostgreSQL)
+│   │   ├── services/          # Assistant & Health probe services
+│   │   ├── assistant/         # OFinanceAssistantRuntime scaffold (Pydantic AI)
+│   │   └── ledger/            # Beancount plain-text bridge scaffold
+│   ├── migrations/            # Alembic async migration suite
+│   ├── tests/                 # pytest suite (health, status, config, run, db, security)
+│   ├── pyproject.toml         # Python packaging & tool configuration
+│   └── .env.example           # Backend environment template
+├── ledger/                    # [Local Ledger] Authoritative main.beancount
+└── data/                      # [Local Data Store] Parquet & DuckDB market data
 ```
 
 ---
 
-## 2. Phase 1 Single Cloud Provider & Backend Environment (`backend/.env`)
+## 2. Backend Setup & Configuration (`backend/.env`)
 
-Phase 1 fixes **Google Gemini** (`gemini-2.5-pro` / `gemini-2.5-flash`) as the sole cloud LLM provider so that all 6 task modes of `OFinanceAssistant` share a single backend `GEMINI_API_KEY`. `Local Ollama` is supported as an optional global offline provider.
+The backend uses **Google Gemini** (`gemini-2.5-pro` / `gemini-2.5-flash`) as the sole cloud LLM provider, with all 6 task modes of `OFinanceAssistant` sharing a single backend `GEMINI_API_KEY`. `Local Ollama` is supported as an optional global offline provider.
 
-Store the Gemini API key exclusively in the Python backend environment (never in frontend `.env` or `VITE_` variables):
+Store the Gemini API key exclusively in the Python backend environment (`backend/.env` — never in frontend `.env` or `VITE_` variables):
 
-```ini
-# Single Cloud AI Provider Configuration for OFinanceAssistant (Phase 1: Gemini)
-OFINANCE_AI_PROVIDER="Gemini"
-OFINANCE_AI_MODEL="gemini-2.5-pro"
-OFINANCE_AI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
-GEMINI_API_KEY="YOUR_BACKEND_ONLY_GEMINI_API_KEY"
-OFINANCE_AI_REQUEST_TIMEOUT=45
-OFINANCE_AI_MAX_OUTPUT_TOKENS=4096
-OFINANCE_AI_DAILY_BUDGET_USD=25.00
-OFINANCE_AI_PER_TASK_BUDGET_USD=0.75
-
-# Local Services
-BEANCOUNT_FILE_PATH="/home/operator/o-finance/ledger/main.beancount"
-FAVA_BASE_URL="http://127.0.0.1:5000"
-DAILY_ANALYSIS_CONNECTOR_URL="http://127.0.0.1:8090/api/v1/reports"
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-### API Key Verification Contract (`GET /api/v1/assistant/config`)
-- In **Demo Mode** (`VITE_DEMO_MODE=true`), the frontend never fakes `api_key_configured: true`. It displays `api_key_configured: false` and `Simulated / Unknown (Unverified in Demo Mode)`.
-- Switching model presets in the UI only updates `provider`, `model`, and `base_url`.
-- Only when the local FastAPI backend is running (`VITE_DEMO_MODE=false`) and validates a real `GEMINI_API_KEY` (or reachable local Ollama daemon) does `GET /api/v1/assistant/config` return `api_key_configured: true`.
+Edit `backend/.env`:
+```ini
+APP_ENV=development
+APP_HOST=127.0.0.1
+APP_PORT=8000
+LOG_LEVEL=INFO
+
+# Local PostgreSQL Connection
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ofinance_db
+
+# AI Provider (Gemini or Local Ollama)
+LLM_PROVIDER=Gemini
+GEMINI_API_KEY=YOUR_BACKEND_ONLY_GEMINI_API_KEY
+GEMINI_MODEL=gemini-2.5-flash
+
+# If using Local Ollama:
+# LLM_PROVIDER="Local Ollama"
+# OLLAMA_BASE_URL="http://127.0.0.1:11434"
+# OLLAMA_MODEL="qwen2.5:14b"
+```
+
+### Run Migrations & Start Backend
+
+```bash
+# Run PostgreSQL migrations
+alembic upgrade head
+
+# Start FastAPI backend server (Port 8000)
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
 ---
 
 ## 3. Dual-Mode Switching (`Demo Adapter` vs. `Local FastAPI Backend`)
 
-The frontend service layer (`src/services/index.ts`) supports two execution modes controlled by environment variables:
+The frontend service layer (`src/services/index.ts`) supports two execution modes:
 
-1. **Demo Adapter Mode (Default in Repo)**:
+1. **Demo Adapter Mode (Default)**:
    - `VITE_DEMO_MODE=true` (or unset)
-   - `AssistantService.runTask()` runs `executeDeterministicDemoAssistantRun()`, which computes real-time figures from the in-memory `accounts`, `holdings`, `transactions`, and `journalEntries` state via `src/utils/finance.ts` and records `tokensUsed: null` / `estimatedCostUSD: null`.
-2. **Local FastAPI + Pydantic AI Mode (Phase 2 on Kali Linux)**:
-   - Set `VITE_DEMO_MODE=false` and `VITE_API_BASE_URL=http://127.0.0.1:8000` when starting the frontend. (The client also safely normalizes `http://127.0.0.1:8000/api/v1` if provided).
-   - `AssistantService.runTask()` sends `POST http://127.0.0.1:8000/api/v1/assistant/run` to the local FastAPI + Pydantic AI + Gemini backend.
+   - `AssistantService.runTask()` runs deterministic in-memory calculations via `src/utils/finance.ts`, across all 4 base currencies (`USD`, `GBP`, `EUR`, `CNY`).
+2. **Local FastAPI Backend Mode**:
+   - Set `VITE_DEMO_MODE=false` and `VITE_API_BASE_URL=http://127.0.0.1:8000`.
+   - `AssistantService.runTask()` sends requests to `POST http://127.0.0.1:8000/api/v1/assistant/run`.
 
 ```bash
-# 1. Start Beancount Fava web reporting server (Port 5000 — Phase 2 Local)
-fava ~/o-finance/ledger/main.beancount --port 5000
-
-# 2. Start Python FastAPI + Pydantic AI backend (Port 8000 — Phase 2 Local)
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-
-# 3. Start O-Finance Frontend Workstation connected to Local FastAPI (Port 3000)
-VITE_DEMO_MODE=false VITE_API_BASE_URL=http://127.0.0.1:8000 bun run dev
+# Start Frontend connected to Local Backend
+VITE_DEMO_MODE=false VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
 ```

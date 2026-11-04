@@ -1,20 +1,22 @@
 """
-O-Finance Core Security & Permission Guard
-Enforces 10 Constitutional Invariants:
-1. Read-Only Connectors by Default
-2. Local Vault Storage Only
-3. Zero Frontend Secret Exposure
-4. LLM Credential Isolation
-5. Non-Bypassable Permission Guard
-6. Immutable Raw Feed Store
-7. Audited Ledger Mutations
-8. Independent Human Authorization (HITL)
-9. Authenticated Local API Contract
-10. Strict Demo / Production Isolation
+O-Finance Core Security & Permission Guard (P2.1.1 Hardened)
+Enforces 10 Constitutional Financial Invariants:
+1. Default-Deny: Only explicitly whitelisted tools and actions may execute.
+2. Mode-Level Tool Isolation: Each of the 6 Task Modes has a strict whitelist.
+3. Explicit Read-Only Whitelist: Connectors and tools are never implicitly read-only.
+4. Non-Bypassable External Fund Block: Outbound wires, withdrawals, live order execution
+   are permanently prohibited at the architecture level (cannot be bypassed by approval).
+5. State-Based Approval Gating: Operations requiring approval enter PENDING;
+   they are blocked from execution until explicit APPROVED record exists.
+6. Local Vault Storage Only: Credentials reside in local backend vault.
+7. Zero Frontend Secret Exposure: Sensitive tokens never sent to client.
+8. Immutable Audit Stream: Audit logs are append-only with SHA-256 hash chains.
+9. Sanitized Logs: Zero plaintext secrets in log messages or database payloads.
+10. Strict Demo / Production Isolation: Demo state never touches live DB.
 """
 
-from typing import Dict, List, Literal, Optional
-from pydantic import BaseModel
+from typing import Dict, List, Literal, Optional, Set
+from pydantic import BaseModel, Field
 
 
 class SecurityPolicyException(Exception):
@@ -22,54 +24,171 @@ class SecurityPolicyException(Exception):
     pass
 
 
+ApprovalStatus = Literal["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"]
+
+
 class OperationPermission(BaseModel):
     action: str
     target: str
     is_write: bool
     requires_approval: bool
+    approval_status: ApprovalStatus = "NOT_REQUIRED"
     is_permitted: bool
+    is_permanently_blocked: bool = False
     reason: str
 
 
 class SecurityGuard:
     """
     Central security gateway.
-    Prohibits financial writes and enforces Human-In-The-Loop approvals.
+    Enforces Default-Deny, strict per-mode tool whitelists,
+    and stateful Human-In-The-Loop approval gates.
     """
 
-    # Operations permanently forbidden on connectors
-    PROHIBITED_CONNECTOR_ACTIONS = {
+    # 1. PERMANENTLY PROHIBITED ACTIONS (Non-bypassable, even with human approval)
+    PERMANENTLY_BLOCKED_ACTIONS: Set[str] = {
         "initiate_transfer",
         "place_order",
+        "execute_live_trade",
         "withdraw_funds",
         "modify_account_credentials",
         "auto_post_unverified_journal",
+        "delete_audit_log",
+        "purge_audit_trail",
+        "direct_trade_execution",
     }
 
-    # Operations requiring explicit operator HITL sign-off
-    HITL_REQUIRED_ACTIONS = {
-        "approve_journal_draft",
+    # 2. EXPLICIT READ-ONLY CONNECTOR ACTIONS (Only these actions allowed on bank/broker connectors)
+    WHITELISTED_CONNECTOR_ACTIONS: Set[str] = {
+        "fetch_accounts",
+        "fetch_balances",
+        "fetch_transactions",
+        "fetch_holdings",
+        "fetch_statements",
+        "verify_connector_status",
+    }
+
+    # 3. TASK MODE TOOL WHITELISTS (Strict Mode Isolation)
+    TASK_MODE_TOOL_WHITELIST: Dict[str, Set[str]] = {
+        "accounting": {
+            "query_accounts",
+            "query_transactions",
+            "query_journal_entries",
+            "compute_cash_flow",
+            "verify_trial_balance",
+            "reconcile_discrepancy",
+            "draft_journal_entry",
+        },
+        "portfolio_analysis": {
+            "query_holdings",
+            "query_portfolio_breakdown",
+            "calculate_unrealized_pnl",
+            "compute_dividend_projections",
+            "check_concentration_exposure",
+        },
+        "research": {
+            "query_watchlist",
+            "fetch_macro_indicators",
+            "fetch_economic_calendar",
+            "fetch_daily_stock_analysis",
+        },
+        "quantitative_research": {
+            "run_strategy_backtest",
+            "query_ohlcv_history",
+            "compute_performance_ratios",
+            "export_experiment_metrics",
+        },
+        "audit": {
+            "query_audit_stream",
+            "verify_audit_hash_chain",
+            "inspect_permission_matrix",
+            "audit_unmatched_transactions",
+        },
+        "risk_analysis": {
+            "compute_value_at_risk",
+            "stress_test_drawdown",
+            "analyze_counterparty_exposure",
+            "detect_volatility_anomaly",
+        },
+    }
+
+    # 4. ACTIONS REQUIRING HUMAN-IN-THE-LOOP APPROVAL
+    HITL_REQUIRED_TOOLS: Set[str] = {
+        "draft_journal_entry",
+        "reconcile_discrepancy",
         "merge_unmatched_transactions",
         "export_financial_vault",
-        "reconcile_discrepancy",
+    }
+
+    # 5. EXPLICIT READ-ONLY TOOLS
+    READ_ONLY_TOOLS: Set[str] = {
+        "query_accounts",
+        "query_transactions",
+        "query_journal_entries",
+        "compute_cash_flow",
+        "verify_trial_balance",
+        "query_holdings",
+        "query_portfolio_breakdown",
+        "calculate_unrealized_pnl",
+        "compute_dividend_projections",
+        "check_concentration_exposure",
+        "query_watchlist",
+        "fetch_macro_indicators",
+        "fetch_economic_calendar",
+        "fetch_daily_stock_analysis",
+        "run_strategy_backtest",
+        "query_ohlcv_history",
+        "compute_performance_ratios",
+        "export_experiment_metrics",
+        "query_audit_stream",
+        "verify_audit_hash_chain",
+        "inspect_permission_matrix",
+        "audit_unmatched_transactions",
+        "compute_value_at_risk",
+        "stress_test_drawdown",
+        "analyze_counterparty_exposure",
+        "detect_volatility_anomaly",
     }
 
     @classmethod
     def check_connector_action(cls, action: str, connector_id: str) -> OperationPermission:
         """
-        Verify whether an action on a bank or brokerage connector is permitted.
-        All outbound funds movement is permanently rejected.
+        Validates action on a bank or brokerage connector.
+        Default-Deny: Unknown actions are strictly blocked.
+        Outbound fund operations are permanently blocked.
         """
-        normalized_action = action.strip().lower()
+        normalized = action.strip().lower()
 
-        if normalized_action in cls.PROHIBITED_CONNECTOR_ACTIONS:
+        # Permanent block
+        if normalized in cls.PERMANENTLY_BLOCKED_ACTIONS:
             return OperationPermission(
                 action=action,
                 target=connector_id,
                 is_write=True,
-                requires_approval=True,
+                requires_approval=False,
+                approval_status="NOT_REQUIRED",
                 is_permitted=False,
-                reason="INVARIANT_1_VIOLATION: Connectors are strictly read-only. External orders and wires are permanently prohibited.",
+                is_permanently_blocked=True,
+                reason=(
+                    f"INVARIANT_4_VIOLATION: Connector action '{action}' is permanently prohibited. "
+                    "External fund movements, orders, and credential modifications cannot execute."
+                ),
+            )
+
+        # Default Deny: Must be in explicit connector whitelist
+        if normalized not in cls.WHITELISTED_CONNECTOR_ACTIONS:
+            return OperationPermission(
+                action=action,
+                target=connector_id,
+                is_write=True,
+                requires_approval=False,
+                approval_status="NOT_REQUIRED",
+                is_permitted=False,
+                is_permanently_blocked=False,
+                reason=(
+                    f"DEFAULT_DENY: Connector action '{action}' is not in the explicit read-only whitelist. "
+                    "Unrecognized actions are strictly denied."
+                ),
             )
 
         return OperationPermission(
@@ -77,39 +196,140 @@ class SecurityGuard:
             target=connector_id,
             is_write=False,
             requires_approval=False,
+            approval_status="NOT_REQUIRED",
             is_permitted=True,
-            reason="Read-only data extraction permitted.",
+            is_permanently_blocked=False,
+            reason="Permitted read-only connector extraction.",
         )
 
     @classmethod
     def check_task_mode_permission(
-        cls, task_mode: str, tool_name: str, confidence: float = 1.0
+        cls,
+        task_mode: str,
+        tool_name: str,
+        confidence: float = 1.0,
+        approval_status: Optional[ApprovalStatus] = None,
     ) -> OperationPermission:
         """
-        Validates tool execution permissions against task mode matrix and confidence threshold.
-        If confidence < 0.85 on drafting, human approval is strictly required.
+        Validates tool execution permissions against task mode matrix and approval status.
+        Default-Deny Policy:
+        - If tool is permanently blocked -> REJECT immediately.
+        - If task_mode is unrecognized -> REJECT.
+        - If tool is not explicitly in the task mode's whitelist -> REJECT.
+        - If tool requires HITL approval or confidence < 0.85:
+            * If approval_status != 'APPROVED' -> is_permitted is FALSE (PENDING approval).
+            * If approval_status == 'APPROVED' -> is_permitted is TRUE.
+            * If approval_status == 'REJECTED' -> is_permitted is FALSE.
         """
-        # Forbidden tools across all modes
-        if tool_name in cls.PROHIBITED_CONNECTOR_ACTIONS:
+        normalized_tool = tool_name.strip().lower()
+
+        # 1. Permanently blocked tools check
+        if normalized_tool in cls.PERMANENTLY_BLOCKED_ACTIONS:
             return OperationPermission(
                 action=tool_name,
                 target=task_mode,
                 is_write=True,
-                requires_approval=True,
+                requires_approval=False,
+                approval_status="NOT_REQUIRED",
                 is_permitted=False,
-                reason=f"Tool '{tool_name}' is permanently prohibited by Security Guard.",
+                is_permanently_blocked=True,
+                reason=f"SECURITY_VIOLATION: Tool '{tool_name}' is permanently prohibited by Security Guard.",
             )
 
-        requires_hitl = confidence < 0.85 or tool_name in cls.HITL_REQUIRED_ACTIONS
+        # 2. Check task mode existence
+        allowed_tools = cls.TASK_MODE_TOOL_WHITELIST.get(task_mode)
+        if allowed_tools is None:
+            return OperationPermission(
+                action=tool_name,
+                target=task_mode,
+                is_write=True,
+                requires_approval=False,
+                approval_status="NOT_REQUIRED",
+                is_permitted=False,
+                is_permanently_blocked=False,
+                reason=f"DEFAULT_DENY: Unknown task mode '{task_mode}'.",
+            )
 
-        return OperationPermission(
-            action=tool_name,
-            target=task_mode,
-            is_write=tool_name.startswith("draft_") or tool_name.startswith("create_"),
-            requires_approval=requires_hitl,
-            is_permitted=True,
-            reason="HITL approval required" if requires_hitl else "Permitted within task mode scope.",
+        # 3. Check tool membership in mode whitelist (Mode Isolation)
+        if normalized_tool not in allowed_tools:
+            return OperationPermission(
+                action=tool_name,
+                target=task_mode,
+                is_write=True,
+                requires_approval=False,
+                approval_status="NOT_REQUIRED",
+                is_permitted=False,
+                is_permanently_blocked=False,
+                reason=(
+                    f"DEFAULT_DENY: Tool '{tool_name}' is not authorized for task mode '{task_mode}'. "
+                    f"Authorized tools: {', '.join(sorted(allowed_tools))}."
+                ),
+            )
+
+        # 4. Check if action is write vs read-only
+        is_read_only = normalized_tool in cls.READ_ONLY_TOOLS
+        is_write = not is_read_only
+
+        # 5. Check if HITL approval is required
+        needs_approval = (
+            confidence < 0.85
+            or normalized_tool in cls.HITL_REQUIRED_TOOLS
+            or is_write
         )
+
+        if not needs_approval:
+            return OperationPermission(
+                action=tool_name,
+                target=task_mode,
+                is_write=False,
+                requires_approval=False,
+                approval_status="NOT_REQUIRED",
+                is_permitted=True,
+                is_permanently_blocked=False,
+                reason="Permitted read-only operation within task mode scope.",
+            )
+
+        # 6. Stateful approval gating
+        current_status: ApprovalStatus = approval_status or "PENDING"
+
+        if current_status == "APPROVED":
+            return OperationPermission(
+                action=tool_name,
+                target=task_mode,
+                is_write=is_write,
+                requires_approval=True,
+                approval_status="APPROVED",
+                is_permitted=True,
+                is_permanently_blocked=False,
+                reason="Permitted: Explicit human operator approval verified.",
+            )
+        elif current_status == "REJECTED":
+            return OperationPermission(
+                action=tool_name,
+                target=task_mode,
+                is_write=is_write,
+                requires_approval=True,
+                approval_status="REJECTED",
+                is_permitted=False,
+                is_permanently_blocked=False,
+                reason="Blocked: Human operator explicitly rejected this operation.",
+            )
+        else:
+            # PENDING state blocks execution
+            return OperationPermission(
+                action=tool_name,
+                target=task_mode,
+                is_write=is_write,
+                requires_approval=True,
+                approval_status="PENDING",
+                is_permitted=False,
+                is_permanently_blocked=False,
+                reason=(
+                    "EXECUTION_BLOCKED: Operation requires human approval "
+                    f"({'confidence ' + str(confidence) + ' < 0.85' if confidence < 0.85 else 'write/critical operation'}). "
+                    "Current status is PENDING. Operator sign-off required in Approval Inbox."
+                ),
+            )
 
     @classmethod
     def sanitize_log_payload(cls, payload: Dict[str, object]) -> Dict[str, object]:

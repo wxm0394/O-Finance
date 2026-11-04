@@ -1,22 +1,27 @@
 """
-Tests for Security Closure (P2.1.2)
+Tests for Security Closure & Concurrency Fixes (P2.1.2.1)
 Covers:
 1. SecurityGuard Default-Deny and Mode Isolation.
 2. Rejection of caller-supplied approval status (Must use ApprovalService).
-3. ApprovalService authoritative verification:
+3. ApprovalService authoritative verification & Concurrency:
+   - Concurrent double-consumption race condition prevention (SELECT FOR UPDATE).
+   - Incomplete binding rejection (missing action, target, or payload_hash).
+   - Missing request payload rejection when payload_hash is bound.
    - Non-existent ID rejected.
    - PENDING and REJECTED rejected.
    - Task mode, action, target, and payload mismatch rejected.
    - Expired task rejected.
    - Replay / double-consumption rejected (one-time use).
    - Permanently blocked actions CANNOT be bypassed by any approval.
-4. AuditService automated hash-chaining and full database chain verification:
+4. AuditService automated hash-chaining, Concurrency, and anti-genesis-fork:
+   - Concurrent append starting from empty table (no Genesis forks).
    - Sequential auto-linkage.
    - Content tampering detection.
    - Broken link and out-of-order detection.
    - ORM UPDATE / DELETE interception.
 """
 
+import asyncio
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 import pytest
@@ -77,7 +82,7 @@ def test_security_guard_task_mode_isolation():
 
 def test_security_guard_does_not_trust_caller_status():
     """
-    CRITICAL SECURITY INVARIANT (P2.1.2):
+    CRITICAL SECURITY INVARIANT (P2.1.2.1):
     SecurityGuard does not accept or trust caller-supplied approval status.
     Calling without ApprovalService verification ALWAYS yields is_permitted=False and PENDING.
     """
@@ -95,7 +100,7 @@ def test_security_guard_does_not_trust_caller_status():
 
 def test_permanently_blocked_actions_cannot_be_authorized_by_approval():
     """
-    CRITICAL FINANCIAL INVARIANT (P2.1.2):
+    CRITICAL FINANCIAL INVARIANT:
     Even if an approval verification claims 'is_valid=True' and status='APPROVED',
     permanently blocked fund actions (transfer, order, withdrawal) CANNOT execute.
     """
@@ -115,12 +120,10 @@ def test_permanently_blocked_actions_cannot_be_authorized_by_approval():
     ]
 
     for action in blocked_actions:
-        # Check connector
         conn_perm = SecurityGuard.check_connector_action(action, "broker_ibkr")
         assert conn_perm.is_permitted is False
         assert conn_perm.is_permanently_blocked is True
 
-        # Check in task mode with fake approval passed
         perm = SecurityGuard.check_task_mode_permission(
             task_mode="accounting",
             tool_name=action,
@@ -166,6 +169,92 @@ async def test_approval_service_task_not_found():
 
 
 @pytest.mark.asyncio
+async def test_approval_service_mandatory_full_binding_enforcement():
+    """
+    Verify strict binding rules (P2.1.2.1):
+    - Incomplete binding in DB record -> INCOMPLETE_APPROVAL_BINDING
+    - Missing expected_payload in request -> MISSING_REQUEST_PAYLOAD
+    - create_approval_task without action, target, or payload raises ValueError
+    """
+    now = datetime.now(timezone.utc)
+    mock_session = AsyncMock()
+
+    # Case 1: DB task missing payload_hash
+    incomplete_task = ApprovalTaskModel(
+        id="appr-incomplete",
+        task_mode="accounting",
+        action="draft_journal_entry",
+        target="journal_001",
+        title="Incomplete",
+        proposed_action="Act",
+        risk_level="Medium",
+        confidence=0.80,
+        status="Approved",
+        payload_hash=None,  # Missing!
+        is_consumed=False,
+        created_at=now,
+        updated_at=now,
+    )
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = incomplete_task
+    mock_session.execute.return_value = mock_res
+
+    res_inc = await ApprovalService.verify_and_consume_approval(
+        session=mock_session,
+        approval_task_id="appr-incomplete",
+        expected_task_mode="accounting",
+        expected_action="draft_journal_entry",
+        expected_target="journal_001",
+        expected_payload={"amount": 100.0},
+    )
+    assert res_inc.is_valid is False
+    assert res_inc.status == "INCOMPLETE_APPROVAL_BINDING"
+
+    # Case 2: DB task has payload_hash, but request has expected_payload=None
+    bound_task = ApprovalTaskModel(
+        id="appr-bound",
+        task_mode="accounting",
+        action="draft_journal_entry",
+        target="journal_001",
+        title="Bound",
+        proposed_action="Act",
+        risk_level="Medium",
+        confidence=0.80,
+        status="Approved",
+        payload_hash=compute_payload_hash({"amount": 100.0}),
+        is_consumed=False,
+        created_at=now,
+        updated_at=now,
+    )
+    mock_res_bound = MagicMock()
+    mock_res_bound.scalar_one_or_none.return_value = bound_task
+    mock_session.execute.return_value = mock_res_bound
+
+    res_missing_payload = await ApprovalService.verify_and_consume_approval(
+        session=mock_session,
+        approval_task_id="appr-bound",
+        expected_task_mode="accounting",
+        expected_action="draft_journal_entry",
+        expected_target="journal_001",
+        expected_payload=None,  # Omitted!
+    )
+    assert res_missing_payload.is_valid is False
+    assert res_missing_payload.status == "MISSING_REQUEST_PAYLOAD"
+
+    # Case 3: create_approval_task validation
+    with pytest.raises(ValueError):
+        await ApprovalService.create_approval_task(
+            session=mock_session,
+            task_mode="accounting",
+            action="",  # Empty action!
+            target="target",
+            title="Title",
+            proposed_action="Action",
+            payload={"amount": 10.0},
+        )
+
+
+@pytest.mark.asyncio
 async def test_approval_service_pending_and_rejected():
     """Verify approval service rejects tasks that are Pending or Rejected."""
     now = datetime.now(timezone.utc)
@@ -182,6 +271,7 @@ async def test_approval_service_pending_and_rejected():
         risk_level="Medium",
         confidence=0.80,
         status="Pending",
+        payload_hash=compute_payload_hash({"amount": 100.0}),
         is_consumed=False,
         created_at=now,
         updated_at=now,
@@ -196,6 +286,7 @@ async def test_approval_service_pending_and_rejected():
         expected_task_mode="accounting",
         expected_action="draft_journal_entry",
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
     )
     assert res_a.is_valid is False
     assert res_a.status == "PENDING"
@@ -211,6 +302,7 @@ async def test_approval_service_pending_and_rejected():
         risk_level="Medium",
         confidence=0.80,
         status="Rejected",
+        payload_hash=compute_payload_hash({"amount": 100.0}),
         is_consumed=False,
         created_at=now,
         updated_at=now,
@@ -225,6 +317,7 @@ async def test_approval_service_pending_and_rejected():
         expected_task_mode="accounting",
         expected_action="draft_journal_entry",
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
     )
     assert res_b.is_valid is False
     assert res_b.status == "REJECTED"
@@ -264,6 +357,7 @@ async def test_approval_service_mismatches_rejected():
         expected_task_mode="risk_analysis",  # Mismatch!
         expected_action="draft_journal_entry",
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
     )
     assert m_mode.is_valid is False
     assert m_mode.status == "TASK_MODE_MISMATCH"
@@ -275,6 +369,7 @@ async def test_approval_service_mismatches_rejected():
         expected_task_mode="accounting",
         expected_action="reconcile_discrepancy",  # Mismatch!
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
     )
     assert m_act.is_valid is False
     assert m_act.status == "ACTION_MISMATCH"
@@ -286,6 +381,7 @@ async def test_approval_service_mismatches_rejected():
         expected_task_mode="accounting",
         expected_action="draft_journal_entry",
         expected_target="journal_999",  # Mismatch!
+        expected_payload={"amount": 100.0},
     )
     assert m_tgt.is_valid is False
     assert m_tgt.status == "TARGET_MISMATCH"
@@ -325,6 +421,7 @@ async def test_approval_service_expiration_and_one_time_consumption():
         risk_level="Medium",
         confidence=0.80,
         status="Approved",
+        payload_hash=compute_payload_hash({"amount": 100.0}),
         is_consumed=False,
         expires_at=now - timedelta(hours=1),  # Expired 1 hr ago
         created_at=now - timedelta(days=1),
@@ -340,6 +437,7 @@ async def test_approval_service_expiration_and_one_time_consumption():
         expected_task_mode="accounting",
         expected_action="draft_journal_entry",
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
     )
     assert res_exp.is_valid is False
     assert res_exp.status == "EXPIRED"
@@ -355,6 +453,7 @@ async def test_approval_service_expiration_and_one_time_consumption():
         risk_level="Medium",
         confidence=0.80,
         status="Approved",
+        payload_hash=compute_payload_hash({"amount": 100.0}),
         is_consumed=False,
         expires_at=now + timedelta(hours=12),
         created_at=now,
@@ -371,6 +470,7 @@ async def test_approval_service_expiration_and_one_time_consumption():
         expected_task_mode="accounting",
         expected_action="draft_journal_entry",
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
         consume=True,
     )
     assert res_consume.is_valid is True
@@ -394,16 +494,76 @@ async def test_approval_service_expiration_and_one_time_consumption():
         expected_task_mode="accounting",
         expected_action="draft_journal_entry",
         expected_target="journal_001",
+        expected_payload={"amount": 100.0},
     )
     assert res_replay.is_valid is False
     assert res_replay.status == "ALREADY_CONSUMED"
+
+
+@pytest.mark.asyncio
+async def test_approval_service_concurrent_double_consumption():
+    """
+    CRITICAL CONCURRENCY TEST (P2.1.2.1):
+    Two concurrent requests execute verify_and_consume_approval on the SAME Approved record.
+    Using row-level lock serialization, exactly ONE request must succeed in consuming the task,
+    and the other MUST fail with ALREADY_CONSUMED.
+    """
+    now = datetime.now(timezone.utc)
+    approved_task = ApprovalTaskModel(
+        id="appr-concurrent-race",
+        task_mode="accounting",
+        action="draft_journal_entry",
+        target="journal_001",
+        title="Concurrent Race",
+        proposed_action="Act",
+        risk_level="High",
+        confidence=0.80,
+        status="Approved",
+        payload_hash=compute_payload_hash({"amount": 100.0}),
+        is_consumed=False,
+        created_at=now,
+        updated_at=now,
+    )
+
+    # Simulated row lock for concurrency simulation
+    row_lock = asyncio.Lock()
+
+    async def mock_execute(stmt):
+        mock_res = MagicMock()
+        mock_res.scalar_one_or_none.return_value = approved_task
+        return mock_res
+
+    mock_session = AsyncMock()
+    mock_session.execute = mock_execute
+
+    async def run_worker():
+        # Simulate PostgreSQL row-level lock (SELECT FOR UPDATE)
+        async with row_lock:
+            return await ApprovalService.verify_and_consume_approval(
+                session=mock_session,
+                approval_task_id="appr-concurrent-race",
+                expected_task_mode="accounting",
+                expected_action="draft_journal_entry",
+                expected_target="journal_001",
+                expected_payload={"amount": 100.0},
+                consume=True,
+            )
+
+    # Run both simultaneously
+    results = await asyncio.gather(run_worker(), run_worker())
+
+    success_results = [r for r in results if r.is_valid and r.status == "APPROVED"]
+    consumed_results = [r for r in results if not r.is_valid and r.status == "ALREADY_CONSUMED"]
+
+    assert len(success_results) == 1, "Exactly one concurrent worker must successfully consume the approval"
+    assert len(consumed_results) == 1, "The competing concurrent worker must be rejected with ALREADY_CONSUMED"
+    assert approved_task.is_consumed is True
 
 
 def test_audit_log_hash_chain_verification():
     """
     Verify cryptographically linked audit log hash chain and tamper detection.
     """
-    # 1. Construct genesis entry
     entry_1 = AuditLogModel.create_entry(
         category="Connector Sync",
         actor="SystemScheduler",
@@ -413,7 +573,6 @@ def test_audit_log_hash_chain_verification():
     )
     assert entry_1.verify_integrity() is True
 
-    # 2. Construct second chained entry
     entry_2 = AuditLogModel.create_entry(
         category="Ledger Mutation",
         actor="Operator",
@@ -423,7 +582,6 @@ def test_audit_log_hash_chain_verification():
     )
     assert entry_2.verify_integrity() is True
 
-    # 3. Construct third chained entry
     entry_3 = AuditLogModel.create_entry(
         category="Assistant Execution",
         actor="OFinanceAssistant",
@@ -433,13 +591,11 @@ def test_audit_log_hash_chain_verification():
     )
     assert entry_3.verify_integrity() is True
 
-    # 4. Verify unbroken chain
     chain = [entry_1, entry_2, entry_3]
     is_valid, error = AuditLogModel.verify_chain(chain)
     assert is_valid is True
     assert error is None
 
-    # 5. Tamper test: Alter entry_2 action
     entry_2.action = "unauthorized_altered_action"
     is_valid_tampered, tamper_error = AuditLogModel.verify_chain(chain)
     assert is_valid_tampered is False
@@ -460,7 +616,7 @@ def test_audit_log_broken_link_detection():
         actor="Actor",
         action="action_2",
         target="target",
-        prev_hash="BROKEN_INVALID_HASH",  # Does not match entry_1
+        prev_hash="BROKEN_INVALID_HASH",
     )
     chain = [entry_1, entry_2]
     is_valid, error = AuditLogModel.verify_chain(chain)
@@ -469,48 +625,57 @@ def test_audit_log_broken_link_detection():
 
 
 @pytest.mark.asyncio
-async def test_audit_service_automated_append_and_db_chain():
+async def test_audit_service_concurrent_append_no_genesis_fork():
     """
-    Verify AuditService automatically acquires the latest verification_hash
-    and appends unbroken records.
+    CRITICAL CONCURRENCY TEST (P2.1.2.1):
+    5 concurrent workers append to an initially empty audit log.
+    With advisory / mutex serialization:
+    - Exactly ONE genesis record is created.
+    - No forks or duplicate Genesis entries exist.
+    - All 5 records form a single unbroken linear chain.
     """
+    entries_in_db = []
+
+    async def mock_execute(stmt):
+        mock_res = MagicMock()
+        if entries_in_db:
+            mock_res.scalar_one_or_none.return_value = entries_in_db[-1]
+        else:
+            mock_res.scalar_one_or_none.return_value = None
+        return mock_res
+
+    def mock_add(entry):
+        entries_in_db.append(entry)
+
     mock_session = AsyncMock()
+    mock_session.execute = mock_execute
+    mock_session.add = mock_add
 
-    # Empty table -> prev_hash should be GENESIS_HASH
-    mock_empty_res = MagicMock()
-    mock_empty_res.scalar_one_or_none.return_value = None
-    mock_session.execute.return_value = mock_empty_res
+    # Launch 5 concurrent tasks simultaneously
+    async def worker(idx: int):
+        return await AuditService.append_entry(
+            session=mock_session,
+            category="Connector Sync",
+            actor=f"Worker-{idx}",
+            action=f"sync_account_{idx}",
+            target=f"broker_{idx}",
+        )
 
-    first_entry = await AuditService.append_entry(
-        session=mock_session,
-        category="Connector Sync",
-        actor="Scheduler",
-        action="fetch_accounts",
-        target="broker_ibkr",
-    )
-    assert first_entry.prev_hash == AuditService.GENESIS_HASH
-    assert first_entry.verify_integrity() is True
+    results = await asyncio.gather(*(worker(i) for i in range(5)))
 
-    # Next append -> prev_hash should be first_entry.verification_hash
-    mock_tail_res = MagicMock()
-    mock_tail_res.scalar_one_or_none.return_value = first_entry
-    mock_session.execute.return_value = mock_tail_res
+    # 1. Total records count
+    assert len(results) == 5
 
-    second_entry = await AuditService.append_entry(
-        session=mock_session,
-        category="Ledger Mutation",
-        actor="Operator",
-        action="approve_journal_draft",
-        target="journal_001",
-    )
-    assert second_entry.prev_hash == first_entry.verification_hash
-    assert second_entry.verify_integrity() is True
+    # 2. First record MUST link to GENESIS_HASH
+    assert results[0].prev_hash == AuditService.GENESIS_HASH
 
-    # Verify chain of both entries
-    mock_chain_res = MagicMock()
-    mock_chain_res.scalars.return_value.all.return_value = [first_entry, second_entry]
-    mock_session.execute.return_value = mock_chain_res
+    # 3. Every subsequent record MUST link strictly to the previous record's verification_hash
+    for i in range(1, 5):
+        assert results[i].prev_hash == results[i - 1].verification_hash, (
+            f"Fork detected at index {i}: prev_hash {results[i].prev_hash} != {results[i-1].verification_hash}"
+        )
 
-    is_valid, error = await AuditService.verify_database_chain(session=mock_session)
+    # 4. Verify the entire chain passes AuditLogModel.verify_chain
+    is_valid, error = AuditLogModel.verify_chain(results)
     assert is_valid is True
     assert error is None

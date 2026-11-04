@@ -84,3 +84,24 @@ async def test_assistant_run_rejects_invalid_confidence_threshold(async_client: 
     }
     response = await async_client.post("/api/v1/assistant/run", json=payload)
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_assistant_run_local_ollama_execution_origin(
+    async_client: AsyncClient, monkeypatch
+):
+    """
+    Verify POST /api/v1/assistant/run outputs LOCAL_FASTAPI_OLLAMA execution_origin
+    when LLM_PROVIDER is set to Local Ollama.
+    """
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "llm_provider", "Local Ollama")
+
+    payload = {
+        "task_mode": "accounting",
+        "prompt": "Verify execution origin under Local Ollama",
+    }
+    response = await async_client.post("/api/v1/assistant/run", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["execution_origin"] == "LOCAL_FASTAPI_OLLAMA"

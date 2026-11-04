@@ -1,16 +1,18 @@
 """
-O-Finance Core Security & Permission Guard (P2.1.1 Hardened)
+O-Finance Core Security & Permission Guard (P2.1.2 Hardened)
 Enforces 10 Constitutional Financial Invariants:
 1. Default-Deny: Only explicitly whitelisted tools and actions may execute.
 2. Mode-Level Tool Isolation: Each of the 6 Task Modes has a strict whitelist.
 3. Explicit Read-Only Whitelist: Connectors and tools are never implicitly read-only.
 4. Non-Bypassable External Fund Block: Outbound wires, withdrawals, live order execution
-   are permanently prohibited at the architecture level (cannot be bypassed by approval).
-5. State-Based Approval Gating: Operations requiring approval enter PENDING;
-   they are blocked from execution until explicit APPROVED record exists.
-6. Local Vault Storage Only: Credentials reside in local backend vault.
-7. Zero Frontend Secret Exposure: Sensitive tokens never sent to client.
-8. Immutable Audit Stream: Audit logs are append-only with SHA-256 hash chains.
+   are permanently prohibited at the architecture level (cannot be bypassed by ANY approval).
+5. Database-Backed Approval Gating: SecurityGuard NEVER trusts caller-supplied approval status.
+   Operations requiring HITL approval MUST be authoritatively verified by ApprovalService
+   against real PostgreSQL database records.
+6. Anti-Replay & Anti-Tampering: Approvals are one-time consumed and strictly bound to
+   task_mode, tool, target, and payload hash.
+7. Local Vault Storage Only: Credentials reside in local backend vault.
+8. Zero Frontend Secret Exposure: Sensitive tokens never sent to client.
 9. Sanitized Logs: Zero plaintext secrets in log messages or database payloads.
 10. Strict Demo / Production Isolation: Demo state never touches live DB.
 """
@@ -24,7 +26,15 @@ class SecurityPolicyException(Exception):
     pass
 
 
-ApprovalStatus = Literal["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"]
+ApprovalStatus = Literal[
+    "NOT_REQUIRED",
+    "PENDING",
+    "APPROVED",
+    "REJECTED",
+    "EXPIRED",
+    "ALREADY_CONSUMED",
+    "MISMATCH",
+]
 
 
 class OperationPermission(BaseModel):
@@ -32,9 +42,10 @@ class OperationPermission(BaseModel):
     target: str
     is_write: bool
     requires_approval: bool
-    approval_status: ApprovalStatus = "NOT_REQUIRED"
+    approval_status: str = "NOT_REQUIRED"
     is_permitted: bool
     is_permanently_blocked: bool = False
+    approval_task_id: Optional[str] = None
     reason: str
 
 
@@ -42,7 +53,7 @@ class SecurityGuard:
     """
     Central security gateway.
     Enforces Default-Deny, strict per-mode tool whitelists,
-    and stateful Human-In-The-Loop approval gates.
+    and database-authoritative Human-In-The-Loop approval gates.
     """
 
     # 1. PERMANENTLY PROHIBITED ACTIONS (Non-bypassable, even with human approval)
@@ -171,7 +182,7 @@ class SecurityGuard:
                 is_permanently_blocked=True,
                 reason=(
                     f"INVARIANT_4_VIOLATION: Connector action '{action}' is permanently prohibited. "
-                    "External fund movements, orders, and credential modifications cannot execute."
+                    "External fund movements, orders, and credential modifications cannot execute under any circumstance."
                 ),
             )
 
@@ -207,46 +218,49 @@ class SecurityGuard:
         cls,
         task_mode: str,
         tool_name: str,
+        target: str = "",
         confidence: float = 1.0,
-        approval_status: Optional[ApprovalStatus] = None,
+        approval_task_id: Optional[str] = None,
+        approval_verification: Optional[object] = None,  # Optional ApprovalVerificationResult
     ) -> OperationPermission:
         """
-        Validates tool execution permissions against task mode matrix and approval status.
-        Default-Deny Policy:
-        - If tool is permanently blocked -> REJECT immediately.
-        - If task_mode is unrecognized -> REJECT.
-        - If tool is not explicitly in the task mode's whitelist -> REJECT.
-        - If tool requires HITL approval or confidence < 0.85:
-            * If approval_status != 'APPROVED' -> is_permitted is FALSE (PENDING approval).
-            * If approval_status == 'APPROVED' -> is_permitted is TRUE.
-            * If approval_status == 'REJECTED' -> is_permitted is FALSE.
+        Validates tool execution permissions against task mode matrix and database approval verification.
+        CRITICAL RULES (P2.1.2):
+        1. Caller-supplied status strings are NOT accepted.
+        2. Permanently blocked tools are rejected unconditionally, even if an approval is passed.
+        3. Unrecognized task modes or tools are rejected under Default-Deny.
+        4. If tool requires HITL approval or confidence < 0.85:
+           - If approval_verification is None -> EXECUTION BLOCKED (PENDING).
+           - If approval_verification is present -> must be valid from ApprovalService.
         """
         normalized_tool = tool_name.strip().lower()
 
-        # 1. Permanently blocked tools check
+        # 1. Permanently blocked tools check (NON-BYPASSABLE)
         if normalized_tool in cls.PERMANENTLY_BLOCKED_ACTIONS:
             return OperationPermission(
                 action=tool_name,
-                target=task_mode,
+                target=target or task_mode,
                 is_write=True,
                 requires_approval=False,
                 approval_status="NOT_REQUIRED",
                 is_permitted=False,
                 is_permanently_blocked=True,
-                reason=f"SECURITY_VIOLATION: Tool '{tool_name}' is permanently prohibited by Security Guard.",
+                approval_task_id=approval_task_id,
+                reason=f"SECURITY_VIOLATION: Tool '{tool_name}' is permanently prohibited by Security Guard. It cannot be authorized by any approval.",
             )
 
-        # 2. Check task mode existence
+        # 2. Check task mode existence (Default Deny)
         allowed_tools = cls.TASK_MODE_TOOL_WHITELIST.get(task_mode)
         if allowed_tools is None:
             return OperationPermission(
                 action=tool_name,
-                target=task_mode,
+                target=target or task_mode,
                 is_write=True,
                 requires_approval=False,
                 approval_status="NOT_REQUIRED",
                 is_permitted=False,
                 is_permanently_blocked=False,
+                approval_task_id=approval_task_id,
                 reason=f"DEFAULT_DENY: Unknown task mode '{task_mode}'.",
             )
 
@@ -254,12 +268,13 @@ class SecurityGuard:
         if normalized_tool not in allowed_tools:
             return OperationPermission(
                 action=tool_name,
-                target=task_mode,
+                target=target or task_mode,
                 is_write=True,
                 requires_approval=False,
                 approval_status="NOT_REQUIRED",
                 is_permitted=False,
                 is_permanently_blocked=False,
+                approval_task_id=approval_task_id,
                 reason=(
                     f"DEFAULT_DENY: Tool '{tool_name}' is not authorized for task mode '{task_mode}'. "
                     f"Authorized tools: {', '.join(sorted(allowed_tools))}."
@@ -280,56 +295,65 @@ class SecurityGuard:
         if not needs_approval:
             return OperationPermission(
                 action=tool_name,
-                target=task_mode,
+                target=target or task_mode,
                 is_write=False,
                 requires_approval=False,
                 approval_status="NOT_REQUIRED",
                 is_permitted=True,
                 is_permanently_blocked=False,
+                approval_task_id=approval_task_id,
                 reason="Permitted read-only operation within task mode scope.",
             )
 
-        # 6. Stateful approval gating
-        current_status: ApprovalStatus = approval_status or "PENDING"
-
-        if current_status == "APPROVED":
+        # 6. HITL Approval Gate: Must be verified by ApprovalService against database
+        if approval_verification is None:
+            # Caller did not provide database verification result
             return OperationPermission(
                 action=tool_name,
-                target=task_mode,
-                is_write=is_write,
-                requires_approval=True,
-                approval_status="APPROVED",
-                is_permitted=True,
-                is_permanently_blocked=False,
-                reason="Permitted: Explicit human operator approval verified.",
-            )
-        elif current_status == "REJECTED":
-            return OperationPermission(
-                action=tool_name,
-                target=task_mode,
-                is_write=is_write,
-                requires_approval=True,
-                approval_status="REJECTED",
-                is_permitted=False,
-                is_permanently_blocked=False,
-                reason="Blocked: Human operator explicitly rejected this operation.",
-            )
-        else:
-            # PENDING state blocks execution
-            return OperationPermission(
-                action=tool_name,
-                target=task_mode,
+                target=target or task_mode,
                 is_write=is_write,
                 requires_approval=True,
                 approval_status="PENDING",
                 is_permitted=False,
                 is_permanently_blocked=False,
+                approval_task_id=approval_task_id,
                 reason=(
-                    "EXECUTION_BLOCKED: Operation requires human approval "
+                    "EXECUTION_BLOCKED: Operation requires database-verified human approval "
                     f"({'confidence ' + str(confidence) + ' < 0.85' if confidence < 0.85 else 'write/critical operation'}). "
-                    "Current status is PENDING. Operator sign-off required in Approval Inbox."
+                    "Current status is PENDING. Caller must pass a verified approval from ApprovalService."
                 ),
             )
+
+        # Evaluate the database verification result object
+        is_valid = getattr(approval_verification, "is_valid", False)
+        status = getattr(approval_verification, "status", "UNKNOWN")
+        rejection_reason = getattr(approval_verification, "rejection_reason", None)
+        verified_id = getattr(approval_verification, "approval_task_id", approval_task_id)
+
+        if is_valid and status == "APPROVED":
+            return OperationPermission(
+                action=tool_name,
+                target=target or task_mode,
+                is_write=is_write,
+                requires_approval=True,
+                approval_status="APPROVED",
+                is_permitted=True,
+                is_permanently_blocked=False,
+                approval_task_id=verified_id,
+                reason="Permitted: Database-verified human approval confirmed.",
+            )
+
+        return OperationPermission(
+            action=tool_name,
+            target=target or task_mode,
+            is_write=is_write,
+            requires_approval=True,
+            approval_status=status,
+            is_permitted=False,
+            is_permanently_blocked=False,
+            approval_task_id=verified_id,
+            reason=f"APPROVAL_REJECTED: {rejection_reason or 'Database verification failed.'}",
+        )
 
     @classmethod
     def sanitize_log_payload(cls, payload: Dict[str, object]) -> Dict[str, object]:

@@ -1,11 +1,13 @@
 """
-O-Finance Health Check Service
-Performs real diagnostics on API, database, and model credentials.
-Strictly separates:
-- API Process Alive
-- PostgreSQL Reachability (real ping)
-- Gemini Key Configured vs. Model Verified
-- Local Ollama Daemon Reachability
+O-Finance Health Check Service (P2.1.2)
+Performs diagnostics on API, database, and model credentials.
+Strict Semantic Definitions:
+- 'configured': ONLY indicates that the configuration (key / URL) exists.
+- 'reachable': ONLY indicates that an actual network connection probe succeeded.
+- 'gemini_api_key': Key presence does NOT equal valid key, nor does it mean reachable.
+  Therefore, reachable=False until a live probe succeeds in Phase 2.2.
+- 'gemini_model': Unverified and unreachable until actual inference probe succeeds.
+- 'ollama': Tested via real HTTP ping to ollama_base_url.
 """
 
 from datetime import datetime, timezone
@@ -40,12 +42,13 @@ class HealthService:
         is_gemini_active = settings.llm_provider == "Gemini"
         gemini_key_configured = settings.is_gemini_key_configured if is_gemini_active else False
 
+        # Configured only indicates presence in backend environment; reachable=False until live probe
         gemini_key_subsystem = SubsystemStatusDto(
             status="healthy" if gemini_key_configured else "unconfigured",
             configured=gemini_key_configured,
-            reachable=gemini_key_configured,
+            reachable=False,  # Strict semantics: presence != live probe verification
             detail=(
-                "GEMINI_API_KEY present in backend environment"
+                "GEMINI_API_KEY present in backend environment (Unverified with live cloud API probe)"
                 if gemini_key_configured
                 else (
                     "GEMINI_API_KEY is not set in backend/.env"
@@ -56,11 +59,11 @@ class HealthService:
         )
 
         # Model verification: Key presence does NOT equal model verification!
-        # In Phase 2.1, no live LLM completion tokens are billed; model probe is pending P2.2
+        # In Phase 2.1.2, no live LLM completion tokens are billed; model probe is pending P2.2
         gemini_model_subsystem = SubsystemStatusDto(
             status="degraded" if gemini_key_configured else "unconfigured",
             configured=gemini_key_configured,
-            reachable=False,  # Unverified until live probe succeeds
+            reachable=False,  # Unreachable / unverified until live probe succeeds
             detail=(
                 "Key configured, but live model endpoint unverified (Probe pending in Phase 2.2)"
                 if gemini_key_configured
@@ -72,21 +75,21 @@ class HealthService:
             ),
         )
 
-        # 3. Local Ollama Subsystem
+        # 3. Local Ollama Subsystem (Real HTTP probe)
         is_ollama_active = settings.llm_provider == "Local Ollama"
         ollama_reachable = False
         ollama_detail = "Not applicable (Gemini provider active)"
 
         if is_ollama_active:
             try:
-                # Attempt ping to local Ollama daemon
+                # Real HTTP ping to local Ollama daemon
                 async with httpx.AsyncClient(timeout=1.0) as client:
                     resp = await client.get(f"{settings.ollama_base_url}/api/tags")
                     if resp.status_code == 200:
                         ollama_reachable = True
                         ollama_detail = f"Local Ollama daemon reachable at {settings.ollama_base_url}"
                     else:
-                        ollama_detail = f"Local Ollama returned status {resp.status_code}"
+                        ollama_detail = f"Local Ollama returned HTTP {resp.status_code}"
             except Exception as e:
                 ollama_detail = f"Local Ollama connection failed: {type(e).__name__}"
 

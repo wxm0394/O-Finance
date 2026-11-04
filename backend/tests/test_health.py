@@ -79,8 +79,9 @@ async def test_healthz_key_configured_does_not_equal_model_verified(
 
     subsystems = data["subsystems"]
 
-    # Key is configured
+    # Key is configured (presence in env), but not yet verified with live API
     assert subsystems["gemini_api_key"]["configured"] is True
+    assert subsystems["gemini_api_key"]["reachable"] is False
     assert subsystems["gemini_api_key"]["status"] == "healthy"
 
     # Model is NOT claimed to be verified/reachable

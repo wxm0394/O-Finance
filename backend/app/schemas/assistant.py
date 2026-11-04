@@ -73,6 +73,7 @@ class AssistantRunRequestDto(BaseModel):
     time_horizon: Optional[str] = None
     confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
     max_tool_steps: int = Field(default=8, ge=1, le=20)
+    approval_task_id: Optional[str] = None
 
     @field_validator("task_mode")
     @classmethod

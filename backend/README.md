@@ -42,8 +42,10 @@ backend/
 │   │   ├── approval.py             # 人工审批流表 (approval_tasks)
 │   │   └── audit.py                # 安全审计日志表 (audit_logs)
 │   ├── services/                   # 业务逻辑服务
+│   │   ├── approval_service.py     # 数据库审批校验、单次核销防重放与匹配
 │   │   ├── assistant_service.py    # Assistant 配置与合约执行
-│   │   └── health_service.py       # 真实数据库与 API 探针逻辑
+│   │   ├── audit_service.py        # 自动化串联 SHA-256 审计哈希链与全链验真
+│   │   └── health_service.py       # 真实数据库、Gemini 与 Ollama 探针逻辑
 │   ├── assistant/                  # 未来统一 Assistant Runtime (Pydantic AI)
 │   │   └── runtime.py              # OFinanceAssistantRuntime 架构骨架
 │   └── ledger/                     # 未来 Beancount 复式簿记集成
@@ -170,9 +172,13 @@ pytest -v
 
 ---
 
-## 6. 核心安全准则 (Security Invariants)
+## 6. 核心安全准则 (Security Invariants & Threat Model)
 
-1. **密钥隔离**: `GEMINI_API_KEY` 仅在 Python 后端环境加载，绝不暴露给前端，绝不记录进日志。
-2. **读写分离与只读连接器**: 银行与券商连接器必须保持纯只读（`Read-Only`），严禁自动执行转账或下单。
-3. **资金安全审批流**: 任何转账、出金、下单与账务过账操作必须生成 `ApprovalTaskModel`，必须经由用户物理显式审批。
-4. **诚实探针**: 严禁在数据库未配置或连接失败时伪造健康状态；严禁在模型未实际发起探针前伪造验证通过。
+1. **Default-Deny 权限网关**: 仅明确列入对应任务模式白名单的工具允许执行，未识别操作一律拒绝。
+2. **凭据隔离**: `GEMINI_API_KEY` 仅在 Python 后端环境加载，绝不暴露给前端，绝不记录进日志。
+3. **只读连接器与出金永久阻断**: 银行与券商连接器必须保持纯只读（`Read-Only`）。转账、出金、下单与直接交易在架构层永久阻断（`is_permanently_blocked=True`），绝不可被任何人工审批绕过。
+4. **数据库权威审批核验 (P2.1.2)**: `SecurityGuard` 绝不信任调用方自由传入的状态。所有敏感写操作必须提供 `approval_task_id`，由 `ApprovalService` 查询 PostgreSQL 真实记录，并严格核验 `task_mode`、`action`、`target` 与 `payload_hash` 匹配。
+5. **单次核销防重放 (Anti-Replay)**: 审批记录一旦用于执行即标记 `is_consumed=True`，不可二次使用；已过期审批一律拒绝。
+6. **自动化审计哈希链 (P2.1.2)**: `AuditService.append_entry()` 在事务中排他锁取上一条记录的 `verification_hash` 作为 `prev_hash`，自动计算新记录的 SHA-256 哈希，杜绝分叉并支持 `verify_database_chain` 全链验真。
+7. **审计安全边界披露**: SQLAlchemy ORM 事件监听器仅阻断应用层 ORM 的 `UPDATE` 和 `DELETE`；原生 SQL 和数据库超管可绕过 ORM。生产环境必须实施最小权限原则（`REVOKE UPDATE, DELETE ON audit_logs FROM ofinance_app_user`）和数据库级触发器。普通 SHA-256 保证防篡改可检测性，但并非物理 WORM 存储。
+8. **诚实探针**: 严禁在数据库未配置或连接失败时伪造健康状态；严禁在模型未实际发起探针前伪造验证通过（`reachable=False` 直至 P2.2 真实探针接入）。

@@ -412,6 +412,9 @@ export interface TrialBalanceResult {
   isBalancedOverall: boolean;
   totalEntriesEvaluated: number;
   unbalancedEntryIds: string[];
+  postedEntriesCount: number;
+  pendingDraftsCount: number;
+  includePendingDrafts: boolean;
 }
 
 /**
@@ -420,6 +423,7 @@ export interface TrialBalanceResult {
  * - Multi-currency entries (e.g. Spot FX conversions) are balanced via explicit cost/basis conversion.
  * - Groups account postings by currency to calculate exact debits, credits, and residuals per currency.
  * - Confirms overall ledger conservation in base currency and per native currency.
+ * - Defaults to posted ledger entries only for formal trial balance (exclude unapproved drafts).
  */
 export function calculateTrialBalance(
   entries: JournalEntry[],
@@ -428,8 +432,13 @@ export function calculateTrialBalance(
     baseCurrency?: CurrencyCode;
   }
 ): TrialBalanceResult {
-  const includeDrafts = options?.includePendingDrafts ?? true;
+  const includeDrafts = options?.includePendingDrafts ?? false;
   const baseCurrency = options?.baseCurrency ?? 'USD';
+
+  const postedEntriesCount = entries.filter((e) => e.status === 'Posted').length;
+  const pendingDraftsCount = entries.filter(
+    (e) => e.status === 'Draft' || e.status === 'Pending Approval'
+  ).length;
 
   const filteredEntries = entries.filter((e) => {
     if (e.status === 'Rejected') return false;
@@ -570,7 +579,7 @@ export function calculateTrialBalance(
         totalDebits: round2(data.totalDebits),
         totalCredits: round2(data.totalCredits),
         residual,
-        isBalanced: Math.abs(residual) < 0.01 || data.accounts.size > 0, // balanced in accounts
+        isBalanced: Math.abs(residual) < 0.01, // strictly balanced only when debits equal credits
         accountCount: data.accounts.size,
         postingCount: data.postingCount,
       };
@@ -578,7 +587,11 @@ export function calculateTrialBalance(
     .sort((a, b) => a.currency.localeCompare(b.currency));
 
   const residualInBase = round2(totalDebitsInBase - totalCreditsInBase);
-  const isBalancedOverall = unbalancedEntryIds.length === 0 && Math.abs(residualInBase) < 0.05;
+  const allCurrencyLegsBalanced = currencySummaries.every((cs) => cs.isBalanced);
+  const isBalancedOverall =
+    unbalancedEntryIds.length === 0 &&
+    Math.abs(residualInBase) < 0.05 &&
+    allCurrencyLegsBalanced;
 
   return {
     baseCurrency,
@@ -591,5 +604,8 @@ export function calculateTrialBalance(
     isBalancedOverall,
     totalEntriesEvaluated: filteredEntries.length,
     unbalancedEntryIds,
+    postedEntriesCount,
+    pendingDraftsCount,
+    includePendingDrafts: includeDrafts,
   };
 }

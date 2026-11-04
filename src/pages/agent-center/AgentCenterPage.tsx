@@ -117,14 +117,14 @@ export const AgentCenterPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-              AI Assistant Center · OFinanceAssistant (DEMO)
+              {t.assistant.title}
             </h1>
             <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-mono text-[11px] font-semibold">
-              v0.3.2 · Demo Adapter Active (FastAPI Harness Pending)
+              v0.4.0 · Demo Adapter Active (FastAPI Harness Pending)
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            One reusable Pydantic AI assistant (<code className="font-mono">OFinanceAssistant</code>) with 6 task modes, Phase 1 single Gemini cloud provider, and explicit separation between Demo Adapter simulation and Local FastAPI runtime.
+            {t.assistant.subtitle}
           </p>
         </div>
 

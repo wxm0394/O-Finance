@@ -34,7 +34,7 @@ const TIME_RANGES: TimeRange[] = ['1W', '1M', '3M', '6M', '1Y', 'ALL'];
 const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#14B8A6', '#8B5CF6'];
 
 export const OverviewPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, l } = useI18n();
   const {
     baseCurrency,
     setBaseCurrency,
@@ -350,7 +350,7 @@ export const OverviewPage: React.FC = () => {
             {allocationData.slice(0, 5).map((item, idx) => (
               <div key={item.name} className="flex items-center justify-between font-mono text-[11px]">
                 <span className="text-slate-600 dark:text-slate-300 truncate">
-                  {idx + 1}. {item.name}
+                  {idx + 1}. {l(item.name)}
                 </span>
                 <span className="text-slate-900 dark:text-slate-100 tabular-nums">
                   {formatCurrency(item.value, baseCurrency, { compact: true })} ({item.pct}%)
@@ -364,10 +364,10 @@ export const OverviewPage: React.FC = () => {
         <div className="lg:col-span-5 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
           <div className="mb-3">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Monthly Cash Flow ({baseCurrency} · Excludes Internal Transfers)
+              {t.overview.monthlyCashFlow} ({baseCurrency})
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Verified Inflows vs Outflows & Net Savings
+              {t.overview.monthlyCashFlowSub}
             </p>
           </div>
           <div className="h-56 w-full">
@@ -395,10 +395,10 @@ export const OverviewPage: React.FC = () => {
         <div className="lg:col-span-4 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
           <div className="mb-3">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Portfolio Cumulative Return vs Benchmark (%)
+              {t.overview.portfolioVsBenchmark}
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              O-Finance Composite (+16.8%) vs Global 60/40 (+12.4%)
+              {t.overview.portfolioVsBenchmarkSub}
             </p>
           </div>
           <div className="h-56 w-full">

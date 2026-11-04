@@ -1,7 +1,7 @@
 {
   "name": "o-finance-workstation",
   "private": true,
-  "version": "0.3.2",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/finance.test.ts src/services/demoAdapter.test.ts"
+    "test": "tsx --test src/utils/finance.test.ts src/services/demoAdapter.test.ts src/utils/i18nAndTrialBalance.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -150,7 +150,7 @@ export const WorkstationShell: React.FC = () => {
         </div>
 
         {/* Center: Global Search (compact flexible width) */}
-        <div className="relative w-36 sm:w-48 md:w-56 lg:w-64 shrink min-w-[120px] mx-1">
+        <div className="relative w-28 sm:w-40 md:w-48 lg:w-56 shrink min-w-[90px] mx-1">
           <div className="relative flex items-center">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 pointer-events-none" />
             <input
@@ -270,28 +270,10 @@ export const WorkstationShell: React.FC = () => {
           )}
         </div>
 
-        {/* Right: Telemetry, Base Currency Switcher, Sync, Notifications, Theme, Operator */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 text-xs">
-          {/* Explicit Architecture Telemetry (visible on extra wide screens) */}
-          <div className="hidden 2xl:flex items-center gap-2 text-[11px] font-mono">
-            {ApiClient.isDemoMode ? (
-              <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                <span>DEMO ADAPTER (Simulation)</span>
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                <span>LOCAL FASTAPI (Connected)</span>
-              </span>
-            )}
-            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-              {ApiClient.isDemoMode ? 'Key: Unverified (Demo)' : 'Key: Verified (Backend)'}
-            </span>
-          </div>
-
+        {/* Right: Base Currency Switcher, Sync, Locale Switcher, Notifications, Theme, Operator */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 text-xs">
           {/* Base Currency Selector */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-0.5">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-0.5 shrink-0">
             {(['USD', 'GBP', 'EUR', 'CNY'] as CurrencyCode[]).map((curr) => (
               <button
                 key={curr}
@@ -315,11 +297,10 @@ export const WorkstationShell: React.FC = () => {
             title={isSyncing ? t.nav.syncing : t.nav.syncNow}
             onClick={() => triggerSimulatedSync()}
             disabled={isSyncing}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-medium transition-colors whitespace-nowrap"
+            className="flex items-center gap-1 px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-medium transition-colors whitespace-nowrap shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
-            <span className="hidden 2xl:inline">{isSyncing ? t.nav.syncing : t.nav.syncNow}</span>
-            <span className="hidden sm:inline 2xl:hidden">
+            <span className="hidden xl:inline">
               {isSyncing ? (locale === 'zh' ? '同步中' : 'Syncing') : (locale === 'zh' ? '同步' : 'Sync')}
             </span>
           </button>
@@ -328,7 +309,7 @@ export const WorkstationShell: React.FC = () => {
           <LocaleSwitcher />
 
           {/* Notifications / Approval Quick Drawer */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               aria-label={t.nav.notifications}
@@ -390,7 +371,7 @@ export const WorkstationShell: React.FC = () => {
             type="button"
             aria-label="Toggle Dark or Light Theme"
             onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-            className="p-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
+            className="p-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 shrink-0"
           >
             {settings.theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
@@ -400,12 +381,12 @@ export const WorkstationShell: React.FC = () => {
             type="button"
             onClick={() => navigate('/settings')}
             title={`${t.nav.operator} (${t.nav.operatorRole})`}
-            className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-slate-800 text-left"
+            className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-slate-800 text-left shrink-0"
           >
             <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold flex items-center justify-center shrink-0">
               OP
             </div>
-            <div className="hidden 2xl:block leading-tight">
+            <div className="hidden xl:block leading-tight">
               <div className="text-[11px] font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
                 {t.nav.operator}
               </div>

@@ -6,7 +6,7 @@ import { convertCurrency, formatCurrency } from '../../utils/finance';
 import { RefreshCw, Link2, Unlink, ShieldAlert, CheckCircle2, X, Lock } from 'lucide-react';
 
 export const AccountsPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, l } = useI18n();
   const {
     accounts,
     connectors,
@@ -52,15 +52,15 @@ export const AccountsPage: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 rounded p-0.5 text-xs font-mono">
-            {['ALL', 'US', 'UK', 'EEA'].map((reg) => (
+            {['ALL', 'US', 'UK', 'EEA', 'Global'].map((reg) => (
               <button
                 key={reg}
                 type="button"
                 onClick={() => setRegionFilter(reg)}
-                className={`px-2.5 py-1 rounded ${
+                className={`px-2.5 py-1 rounded transition-colors ${
                   regionFilter === reg
                     ? 'bg-slate-900 text-white dark:bg-blue-600 dark:text-white'
-                    : 'text-slate-600 dark:text-slate-400'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {reg}
@@ -128,16 +128,16 @@ export const AccountsPage: React.FC = () => {
                 return (
                   <tr key={acc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                     <td className="py-2.5 pl-3 pr-2 font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                      {acc.institution.replace(' (Simulated)', '')}
+                      {l(acc.institution.replace(' (Simulated)', ''))}
                     </td>
                     <td className="py-2.5 px-2 text-slate-700 dark:text-slate-300 max-w-[185px]">
-                      <div className="truncate font-medium" title={acc.accountName}>{acc.accountName}</div>
+                      <div className="truncate font-medium" title={acc.accountName}>{l(acc.accountName)}</div>
                       <div className="text-[10px] font-mono text-slate-400">
                         {acc.accountNumberMasked} · {acc.region}
                       </div>
                     </td>
                     <td className="py-2.5 px-2 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                      {acc.accountType}
+                      {l(acc.accountType)}
                     </td>
                     <td className="py-2.5 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200">
                       {acc.currency}
@@ -177,11 +177,11 @@ export const AccountsPage: React.FC = () => {
                             : 'text-slate-600 dark:text-slate-300'
                         }
                       >
-                        {isSyncing ? 'Syncing (Sim)' : acc.connectionStatus}
+                        {isSyncing ? t.nav.syncing : l(acc.connectionStatus)}
                       </span>
                     </td>
                     <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {acc.dataFreshness.replace('Simulated ', 'Sim ')}
+                      {l(acc.dataFreshness)}
                     </td>
                     <td className="sticky right-0 z-10 bg-white dark:bg-[#0F1420] border-l border-slate-100 dark:border-slate-800/80 py-2.5 px-3 text-right whitespace-nowrap shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
                       <button

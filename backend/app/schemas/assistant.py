@@ -1,0 +1,101 @@
+"""
+O-Finance Assistant Schemas (Pydantic v2 DTOs)
+Strictly snake_case wire format matching the O-Finance Frontend API contract.
+"""
+
+from typing import List, Literal, Optional
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, field_validator
+
+# 6 Supported Task Modes on the single OFinanceAssistant
+AssistantTaskMode = Literal[
+    "accounting",
+    "portfolio_analysis",
+    "research",
+    "quantitative_research",
+    "audit",
+    "risk_analysis",
+]
+
+VALID_TASK_MODES: List[str] = [
+    "accounting",
+    "portfolio_analysis",
+    "research",
+    "quantitative_research",
+    "audit",
+    "risk_analysis",
+]
+
+
+class ToolStepDto(BaseModel):
+    step_number: int
+    tool_name: str
+    category: str
+    call_signature: str
+    status: str
+    duration_ms: int
+    finding: str
+
+
+class AssistantStatusDto(BaseModel):
+    assistant_name: str = "OFinanceAssistant"
+    runtime_mode: str = "LOCAL_FASTAPI"
+    runtime_status: str
+    provider: str
+    model: str
+    api_key_configured: bool
+    api_key_status: str
+    model_verified: bool
+    supported_modes: List[AssistantTaskMode] = Field(default_factory=lambda: list(VALID_TASK_MODES))  # type: ignore
+    active_task_mode: AssistantTaskMode = "accounting"
+    daily_budget_usd: float = 25.0
+    real_budget_used_today_usd: float = 0.0
+    real_tokens_used_today: int = 0
+    simulated_tasks_executed_today: int = 0
+
+
+class UnifiedModelConfigDto(BaseModel):
+    provider: str
+    model: str
+    base_url: str
+    api_key_configured: bool
+    api_key_status: str
+    model_verified: bool
+    daily_budget_usd: float
+    max_steps_per_run: int
+    # CRITICAL: Under no circumstances should GEMINI_API_KEY be present here.
+
+
+class AssistantRunRequestDto(BaseModel):
+    task_mode: AssistantTaskMode
+    prompt: str = Field(min_length=1, max_length=4000)
+    base_currency: Literal["USD", "GBP", "EUR", "CNY"] = "USD"
+    time_horizon: Optional[str] = None
+    confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    max_tool_steps: int = Field(default=8, ge=1, le=20)
+
+    @field_validator("task_mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        if v not in VALID_TASK_MODES:
+            raise ValueError(
+                f"Invalid task_mode '{v}'. Allowed modes: {', '.join(VALID_TASK_MODES)}"
+            )
+        return v
+
+
+class AssistantRunResponseDto(BaseModel):
+    task_id: str
+    task_mode: AssistantTaskMode
+    prompt: str
+    execution_origin: str = "LOCAL_FASTAPI_GEMINI"
+    status: Literal["completed", "pending_approval", "error", "scaffold_not_implemented"]
+    message: str
+    is_implemented: bool
+    tool_steps: List[ToolStepDto] = Field(default_factory=list)
+    tokens_used: Optional[int] = None
+    estimated_cost_usd: Optional[float] = None
+    requires_human_approval: bool = False
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )

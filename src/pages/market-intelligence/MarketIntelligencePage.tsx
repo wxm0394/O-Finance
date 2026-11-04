@@ -15,7 +15,7 @@ const INDICES_SNAPSHOT = [
 ];
 
 export const MarketIntelligencePage: React.FC = () => {
-  const { t, l } = useI18n();
+  const { t, locale, l } = useI18n();
   const {
     watchlist,
     researchReports,
@@ -41,11 +41,10 @@ export const MarketIntelligencePage: React.FC = () => {
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {t.market.subtitle}
-            Simulated global benchmarks, watchlist valuation metrics, macro economic calendar, and read-only External Research Connectors.
           </p>
         </div>
         <span className="text-xs font-mono text-amber-600 dark:text-amber-400">
-          SIMULATED MARKET DATA · NO LIVE EXCHANGE FEED
+          {t.market.bannerSimulated}
         </span>
       </div>
 
@@ -73,95 +72,122 @@ export const MarketIntelligencePage: React.FC = () => {
         ))}
       </div>
 
-      {/* 10.1 External Research Connector: Daily Analysis Connector */}
+      {/* External Research Connector: Daily Analysis Connector */}
       <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Link2 className="w-4 h-4 text-blue-500" />
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                External Research Connector · Daily Analysis Connector (daily_stock_analysis)
+                {t.market.externalConnector}
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Strict Architectural Boundary: Independent external project. Zero code/database merge. Read-only API placeholder only.
+                {t.market.externalBoundary}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-mono font-semibold">
-              Connection Status: Not Connected
+              {locale === 'zh' ? '连接状态: 未连接 (仅占位)' : 'Connection Status: Not Connected'}
             </span>
             <button
               type="button"
               onClick={() =>
                 showToast(
-                  'Daily Analysis Connector is a read-only placeholder in Demo Mode. No external HTTP request dispatched.',
+                  locale === 'zh'
+                    ? '每日投研分析连接器在演示模式下为只读接口占位符，未发起外部网络请求。'
+                    : 'Daily Analysis Connector is a read-only placeholder in Demo Mode. No external HTTP request dispatched.',
                   'info'
                 )
               }
-              className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-mono"
+              className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-mono transition-colors"
             >
-              Test Read-Only Ping (Placeholder)
+              {locale === 'zh' ? '测试只读连通性 (占位)' : 'Test Read-Only Ping (Placeholder)'}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-mono bg-slate-50 dark:bg-slate-900/70 p-3 rounded border border-slate-200 dark:border-slate-800">
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-400 block truncate">Service Name</span>
-            <span className="font-semibold text-slate-900 dark:text-white truncate block">Daily Analysis Connector</span>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {locale === 'zh' ? '服务名称' : 'Service Name'}
+            </span>
+            <span className="font-semibold text-slate-900 dark:text-white truncate block">
+              Daily Analysis Connector
+            </span>
           </div>
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-400 block truncate">API Base URL (Placeholder)</span>
-            <span className="text-blue-600 dark:text-blue-400 block truncate font-mono text-xs" title={settings.dailyAnalysisApiUrl}>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {locale === 'zh' ? 'API 目标基地址 (占位)' : 'API Base URL (Placeholder)'}
+            </span>
+            <span
+              className="text-blue-600 dark:text-blue-400 block truncate font-mono text-xs"
+              title={settings.dailyAnalysisApiUrl}
+            >
               {settings.dailyAnalysisApiUrl}
             </span>
           </div>
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-400 block truncate">Last Report Sync</span>
-            <span className="truncate block">Never (Placeholder Interface)</span>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {locale === 'zh' ? '上次报告同步' : 'Last Report Sync'}
+            </span>
+            <span className="truncate block">
+              {locale === 'zh' ? '从未同步 (占位接口)' : 'Never (Placeholder Interface)'}
+            </span>
           </div>
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-400 block truncate">Latest Report Date</span>
-            <span className="truncate block">N/A (Not Connected)</span>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {locale === 'zh' ? '最新研报发布日期' : 'Latest Report Date'}
+            </span>
+            <span className="truncate block">
+              {locale === 'zh' ? '无数据 (未连接)' : 'N/A (Not Connected)'}
+            </span>
           </div>
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-400 block truncate">Sync History</span>
-            <span className="truncate block">0 External Calls Made</span>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {locale === 'zh' ? '外部调用统计' : 'Sync History'}
+            </span>
+            <span className="truncate block">
+              {locale === 'zh' ? '0 次外部调用' : '0 External Calls Made'}
+            </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           <span>
-            Boundary Contract Verified: O-Finance does not bundle daily_stock_analysis code, does not duplicate its database, and does not re-implement its internal logic.
+            {locale === 'zh'
+              ? '架构边界契约验证通过: O-Finance 未打包 daily_stock_analysis 代码，未合并其数据库，未重写其内部逻辑。'
+              : 'Boundary Contract Verified: O-Finance does not bundle daily_stock_analysis code, does not duplicate its database, and does not re-implement its internal logic.'}
           </span>
         </div>
       </div>
 
       {/* Main Grid: Watchlist (6 cols) + Research Reports & News (6 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* 2. Watchlist Table */}
+        {/* Watchlist Table */}
         <div className="lg:col-span-6 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
               <Globe className="w-4 h-4 text-blue-500" />
-              <span>Core Equity & ETF Watchlist (Simulated)</span>
+              <span>{t.market.watchlist}</span>
             </h2>
-            <span className="text-[11px] font-mono text-slate-400">{watchlist.length} Symbols</span>
+            <span className="text-[11px] font-mono text-slate-400">
+              {watchlist.length} {locale === 'zh' ? '只标的' : 'Symbols'}
+            </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                  <th className="py-2 pr-2 font-medium">Symbol</th>
-                  <th className="py-2 px-2 font-medium">Security</th>
-                  <th className="py-2 px-2 font-medium text-right">Price</th>
-                  <th className="py-2 px-2 font-medium text-right">Chg %</th>
-                  <th className="py-2 px-2 font-medium text-right">P/E</th>
-                  <th className="py-2 pl-2 font-medium text-right">Yield</th>
+                  <th className="py-2 pr-2 font-medium">{t.market.colSymbol}</th>
+                  <th className="py-2 px-2 font-medium">{t.market.colName}</th>
+                  <th className="py-2 px-2 font-medium text-right">{t.market.colPrice}</th>
+                  <th className="py-2 px-2 font-medium text-right">{t.market.colChange}</th>
+                  <th className="py-2 px-2 font-medium text-right">{t.market.colPe}</th>
+                  <th className="py-2 pl-2 font-medium text-right">{t.market.colDivYield}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-mono">
@@ -171,7 +197,7 @@ export const MarketIntelligencePage: React.FC = () => {
                       {w.symbol}
                     </td>
                     <td className="py-2.5 px-2 font-sans text-slate-800 dark:text-slate-200 truncate max-w-[140px]">
-                      {w.name}
+                      {l(w.name)}
                     </td>
                     <td className="py-2.5 px-2 text-right tabular-nums">
                       {formatCurrency(w.price, w.currency)}
@@ -198,12 +224,12 @@ export const MarketIntelligencePage: React.FC = () => {
           </div>
         </div>
 
-        {/* 3. Research Reports */}
+        {/* Research Reports */}
         <div className="lg:col-span-6 p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-blue-500" />
-              <span>Research Briefings & Synthesis Notes (DEMO)</span>
+              <span>{t.market.researchReports}</span>
             </h2>
             <div className="flex items-center gap-1 text-[11px] font-mono">
               {['ALL', 'Sector', 'Macro', 'Earnings', 'Quant Note'].map((cat) => (
@@ -211,13 +237,31 @@ export const MarketIntelligencePage: React.FC = () => {
                   key={cat}
                   type="button"
                   onClick={() => setCategoryFilter(cat)}
-                  className={`px-2 py-0.5 rounded ${
+                  className={`px-2 py-0.5 rounded transition-colors ${
                     categoryFilter === cat
                       ? 'bg-slate-900 text-white dark:bg-blue-600'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  {cat}
+                  {cat === 'ALL'
+                    ? t.market.filterAll
+                    : cat === 'Sector'
+                    ? locale === 'zh'
+                      ? '行业'
+                      : 'Sector'
+                    : cat === 'Macro'
+                    ? locale === 'zh'
+                      ? '宏观'
+                      : 'Macro'
+                    : cat === 'Earnings'
+                    ? locale === 'zh'
+                      ? '财报'
+                      : 'Earnings'
+                    : cat === 'Quant Note'
+                    ? locale === 'zh'
+                      ? '量化笔记'
+                      : 'Quant Note'
+                    : cat}
                 </button>
               ))}
             </div>
@@ -232,18 +276,18 @@ export const MarketIntelligencePage: React.FC = () => {
               >
                 <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
                   <span>
-                    {rep.date} · {rep.category} · {rep.symbols.join(', ')}
+                    {rep.date} · {l(rep.category)} · {rep.symbols.join(', ')}
                   </span>
                   <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
                     <Eye className="w-3 h-3" />
-                    <span>Read</span>
+                    <span>{t.market.inspectReport}</span>
                   </span>
                 </div>
                 <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                  {rep.title}
+                  {l(rep.title)}
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2">
-                  {rep.summary}
+                  {l(rep.summary)}
                 </p>
               </div>
             ))}
@@ -251,27 +295,29 @@ export const MarketIntelligencePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 & 5. Economic Calendar & Market Events */}
+      {/* Economic Calendar & Market Events */}
       <div className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-blue-500" />
-            <span>Global Macro & Central Bank Economic Calendar (Simulated Schedule)</span>
+            <span>{t.market.economicCalendar}</span>
           </h2>
-          <span className="text-xs font-mono text-slate-500">G3 Jurisdictions (US / UK / EU)</span>
+          <span className="text-xs font-mono text-slate-500">
+            {locale === 'zh' ? '主要经济体 (美 / 英 / 欧 / 中)' : 'Major Jurisdictions (US / UK / EU / APAC)'}
+          </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                <th className="py-2 pr-3 font-medium">Date & Time (UTC)</th>
-                <th className="py-2 px-3 font-medium">Region</th>
-                <th className="py-2 px-3 font-medium">Macro Event / Release</th>
-                <th className="py-2 px-3 font-medium">Impact</th>
-                <th className="py-2 px-3 font-medium text-right">Previous</th>
-                <th className="py-2 px-3 font-medium text-right">Consensus</th>
-                <th className="py-2 pl-3 font-medium text-right">Status</th>
+                <th className="py-2 pr-3 font-medium">{locale === 'zh' ? '日期与时间 (UTC)' : 'Date & Time (UTC)'}</th>
+                <th className="py-2 px-3 font-medium">{locale === 'zh' ? '地区' : 'Region'}</th>
+                <th className="py-2 px-3 font-medium">{locale === 'zh' ? '宏观事件 / 数据指标' : 'Macro Event / Release'}</th>
+                <th className="py-2 px-3 font-medium">{locale === 'zh' ? '影响程度' : 'Impact'}</th>
+                <th className="py-2 px-3 font-medium text-right">{locale === 'zh' ? '前值' : 'Previous'}</th>
+                <th className="py-2 px-3 font-medium text-right">{locale === 'zh' ? '预测值' : 'Consensus'}</th>
+                <th className="py-2 pl-3 font-medium text-right">{locale === 'zh' ? '实际/状态' : 'Status'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-mono text-[11px]">
@@ -284,7 +330,7 @@ export const MarketIntelligencePage: React.FC = () => {
                     {ev.region}
                   </td>
                   <td className="py-2.5 px-3 font-sans text-slate-900 dark:text-slate-100 font-medium">
-                    {ev.event}
+                    {l(ev.event)}
                   </td>
                   <td className="py-2.5 px-3">
                     <span
@@ -294,7 +340,13 @@ export const MarketIntelligencePage: React.FC = () => {
                           : 'text-slate-500'
                       }
                     >
-                      {ev.impact}
+                      {ev.impact === 'High'
+                        ? locale === 'zh'
+                          ? '高影响'
+                          : 'High'
+                        : locale === 'zh'
+                        ? '中等'
+                        : 'Medium'}
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right tabular-nums">{ev.previous}</td>
@@ -312,22 +364,22 @@ export const MarketIntelligencePage: React.FC = () => {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Research Briefing Reader"
+          aria-label={t.market.reportModalTitle}
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
         >
           <div className="bg-white dark:bg-[#111726] border border-slate-200 dark:border-slate-700 rounded max-w-xl w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <div className="text-[11px] font-mono text-blue-500">
-                  {selectedReport.id} · {selectedReport.date} · {selectedReport.category}
+                  {selectedReport.id} · {selectedReport.date} · {l(selectedReport.category)}
                 </div>
                 <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white mt-0.5">
-                  {selectedReport.title}
+                  {l(selectedReport.title)}
                 </h3>
               </div>
               <button
                 type="button"
-                aria-label="Close research briefing"
+                aria-label={t.market.closeModal}
                 onClick={() => setSelectedReport(null)}
                 className="text-slate-400 hover:text-slate-200"
               >
@@ -337,11 +389,15 @@ export const MarketIntelligencePage: React.FC = () => {
 
             <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed space-y-3">
               <div className="font-mono text-[11px] text-slate-500">
-                Source: {selectedReport.source} · Symbols: {selectedReport.symbols.join(', ')} · Posture: {selectedReport.sentiment}
+                {locale === 'zh' ? '研报来源' : 'Source'}: {selectedReport.source} ·{' '}
+                {locale === 'zh' ? '标的' : 'Symbols'}: {selectedReport.symbols.join(', ')} ·{' '}
+                {locale === 'zh' ? '评级态度' : 'Posture'}: {selectedReport.sentiment}
               </div>
-              <p>{selectedReport.summary}</p>
+              <p>{l(selectedReport.summary)}</p>
               <div className="p-3 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono text-[11px] text-slate-500">
-                NOTE: This briefing is a simulated research artifact generated for O-Finance DEMO Mode. It does not constitute investment advice.
+                {locale === 'zh'
+                  ? '注意: 本简报为 O-Finance 演示模式生成的投研参考示例，不构成任何投资建议或证券推介。'
+                  : 'NOTE: This briefing is a simulated research artifact generated for O-Finance DEMO Mode. It does not constitute investment advice.'}
               </div>
             </div>
 
@@ -351,7 +407,7 @@ export const MarketIntelligencePage: React.FC = () => {
                 onClick={() => setSelectedReport(null)}
                 className="px-4 py-1.5 rounded bg-blue-600 text-white text-xs font-medium"
               >
-                Close Briefing
+                {t.market.closeModal}
               </button>
             </div>
           </div>

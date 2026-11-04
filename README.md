@@ -1,11 +1,15 @@
-# O-Finance — Private Financial Operating System (v0.3.2)
+# O-Finance — Private Financial Operating System (v0.4.0)
 
-> **FRONTEND WORKSTATION & DETERMINISTIC DEMO ADAPTER (v0.3.2 — Final Frontend Contract Freeze)**
-> This repository contains the **Frontend Workstation Prototype + Deterministic Demo Adapter (v0.3.2)** of **O-Finance**, a local-first Private Financial Operating System unifying multi-institution banking and brokerage accounts, Beancount double-entry accounting, portfolio risk analytics, DuckDB quantitative strategy backtesting, and a single Pydantic AI assistant (`OFinanceAssistant`) with human-in-the-loop governance.
+> **FRONTEND WORKSTATION & DETERMINISTIC DEMO ADAPTER (v0.4.0 — Bilingual & Four Base Currencies)**
+> This repository contains the **Frontend Workstation Prototype + Deterministic Demo Adapter (v0.4.0)** of **O-Finance**, a local-first Private Financial Operating System unifying multi-institution banking and brokerage accounts, Beancount double-entry accounting, portfolio risk analytics, DuckDB quantitative strategy backtesting, and a single Pydantic AI assistant (`OFinanceAssistant`) with human-in-the-loop governance.
 >
-> **Important Repository Scope Note (Phase 1 vs. Phase 2 Local Backend)**:
-> - **Included in this repository (Phase 1 Complete)**: The complete 11-route React + TypeScript workstation UI, deterministic financial calculation engine (`src/utils/finance.ts`), automated test suite for both financial math and Demo Adapter (`src/utils/finance.test.ts` & `src/services/demoAdapter.test.ts`), per-currency Beancount Trial Balance verification, Dual-Mode normalized REST client (`src/services/index.ts` & `src/services/api/client.ts`), and the deterministic Demo Adapter (`executeDeterministicDemoAssistantRun`).
-> - **Target for Phase 2 on Local Kali Linux (`backend/` — Not Yet Present in Repo)**: The Python 3.12 FastAPI + Pydantic AI + Gemini backend service (`backend/`), local Beancount/Fava daemon, and DuckDB Parquet store documented in [`docs/LOCAL_DEPLOYMENT.md`](./docs/LOCAL_DEPLOYMENT.md).
+> **What's New in v0.4.0**:
+> - **Full Bilingual Localization (EN / 简体中文)**: Instant, zero-reload locale switcher `[ EN | 中文 ]` saved to localStorage, covering all 11 routes, modal inspectors, telemetry cards, and dynamic financial mock entity dictionaries via `l()`.
+> - **Native 4-Currency Support (USD, GBP, EUR, CNY)**: Seamless base currency switching with CNY (¥) as a first-class base currency across wealth cockpits, dividend ledgers, holding valuations, and Beancount journals.
+> - **Strict Beancount Multi-Currency Balance**: Multi-currency spot FX transactions incorporate standard Beancount trading accounts (`Equity:Trading:USD`, `Equity:Trading:GBP`), guaranteeing single-currency conservation with 0.00 residual per currency leg.
+> - **Trial Balance Posted vs. Pending Separation**: Default `includePendingDrafts: false` verifies official posted ledgers separately from unapproved drafts.
+> - **Responsive Institutional Header**: Zero-clipping top bar with smooth search resizing and persistent access to all action controls.
+> - **20 Automated Unit Tests**: Comprehensive test suite covering i18n key parity, CNY math, Demo Adapter runs, and double-entry trial balance invariance.
 
 ---
 

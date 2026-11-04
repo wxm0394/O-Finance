@@ -97,7 +97,7 @@ export const AccountingPage: React.FC = () => {
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>('JE-2026-001');
   const [favaModalOpen, setFavaModalOpen] = useState(false);
   const [selectedCurrencyFilter, setSelectedCurrencyFilter] = useState<'ALL' | 'USD' | 'GBP' | 'EUR' | 'CNY'>('ALL');
-  const [includeDraftsInTrialBalance, setIncludeDraftsInTrialBalance] = useState(true);
+  const [includeDraftsInTrialBalance, setIncludeDraftsInTrialBalance] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -498,13 +498,22 @@ export const AccountingPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>Beancount Multi-Currency Trial Balance</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    {trialBalanceResult.isBalancedOverall ? 'BALANCED' : 'UNBALANCED'}
+                  <span>{t.accounting.trialBalance}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                    trialBalanceResult.isBalancedOverall
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                  }`}>
+                    {trialBalanceResult.isBalancedOverall ? t.accounting.balanced : t.accounting.unbalanced}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono text-slate-500 border border-slate-200 dark:border-slate-800">
+                    {includeDraftsInTrialBalance
+                      ? `${t.accounting.draftsIncluded} (${trialBalanceResult.pendingDraftsCount})`
+                      : `${t.accounting.officialPostedOnly} (${trialBalanceResult.postedEntriesCount})`}
                   </span>
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Deterministically verifies Debits == Credits per currency and economic conservation across {trialBalanceResult.totalEntriesEvaluated} journal entries
+                  {t.accounting.trialBalanceDesc} ({trialBalanceResult.totalEntriesEvaluated} entries)
                 </p>
               </div>
 
@@ -516,14 +525,14 @@ export const AccountingPage: React.FC = () => {
                     onChange={(e) => setIncludeDraftsInTrialBalance(e.target.checked)}
                     className="rounded border-slate-300 text-blue-600 focus:ring-0"
                   />
-                  <span>Include Drafts</span>
+                  <span>{t.accounting.includeDrafts}</span>
                 </label>
               </div>
             </div>
 
             {/* Currency Filter Tabs */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1 border-b border-slate-200 dark:border-slate-800 pb-2">
-              <span className="text-[11px] text-slate-400 font-mono mr-1">Currency Filter:</span>
+              <span className="text-[11px] text-slate-400 font-mono mr-1">{t.accounting.currencyFilter}</span>
               {(['ALL', 'USD', 'GBP', 'EUR', 'CNY'] as const).map((curr) => {
                 const summary = trialBalanceResult.currencySummaries.find((s) => s.currency === curr);
                 const isSelected = selectedCurrencyFilter === curr;
@@ -580,11 +589,11 @@ export const AccountingPage: React.FC = () => {
               <table className="w-full text-left border-collapse text-xs font-mono">
                 <thead className="sticky top-0 bg-white dark:bg-[#0F1420] border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
                   <tr>
-                    <th className="py-2 pr-3 font-medium">Beancount Account</th>
-                    <th className="py-2 px-2 font-medium text-center">Curr</th>
-                    <th className="py-2 px-3 font-medium text-right">Debit</th>
-                    <th className="py-2 px-3 font-medium text-right">Credit</th>
-                    <th className="py-2 pl-3 font-medium text-right">Net Balance</th>
+                    <th className="py-2 pr-3 font-medium">{t.accounting.colAccount}</th>
+                    <th className="py-2 px-2 font-medium text-center">{t.accounting.colCurrency}</th>
+                    <th className="py-2 px-3 font-medium text-right">{t.accounting.colDebit}</th>
+                    <th className="py-2 px-3 font-medium text-right">{t.accounting.colCredit}</th>
+                    <th className="py-2 pl-3 font-medium text-right">{t.accounting.colNet}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-[11px]">

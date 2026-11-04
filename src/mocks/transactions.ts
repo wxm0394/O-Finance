@@ -791,12 +791,16 @@ export const INITIAL_JOURNAL_ENTRIES: JournalEntry[] = [
     postings: [
       { account: 'Assets:Investments:InteractiveBrokers:Cash', amount: 6423.0, currency: 'USD' },
       { account: 'Expenses:Fees:FXConversion', amount: 2.0, currency: 'USD' },
+      { account: 'Equity:Trading:USD', amount: -6425.0, currency: 'USD' },
+      { account: 'Equity:Trading:GBP', amount: 5000.0, currency: 'GBP' },
       { account: 'Assets:Investments:InteractiveBrokers:CashGBP', amount: -5000.0, currency: 'GBP', costBasis: '@ 1.2850 USD' },
     ],
     rawBeancount: `2026-10-27 * "IBKR IdealPro FX Venue" "Spot FX Conversion 5,000 GBP -> 6,425.00 USD"
   id: "TX-2026-006"
   Assets:Investments:InteractiveBrokers:Cash      6423.00 USD
   Expenses:Fees:FXConversion                         2.00 USD
+  Equity:Trading:USD                             -6425.00 USD
+  Equity:Trading:GBP                              5000.00 GBP
   Assets:Investments:InteractiveBrokers:CashGBP  -5000.00 GBP @ 1.2850 USD`,
   },
   {

@@ -60,7 +60,7 @@ export const apiClientConfig: ApiClientConfig = {
   demoMode: isDemo,
   runtimeMode: isDemo ? 'DEMO' : 'LOCAL_FASTAPI',
   baseUrl: (env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, ''),
-  clientVersion: 'Desktop-Web-v0.3.2',
+  clientVersion: 'Desktop-Web-v0.4.0',
 };
 
 export async function simulateNetworkDelay<T>(data: T, ms = 120): Promise<T> {

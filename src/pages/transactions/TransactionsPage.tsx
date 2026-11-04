@@ -4,6 +4,7 @@ import { useOFinance } from '../../app/providers/OFinanceContext';
 import { TransactionRecord, TransactionType } from '../../types';
 import { calculateCashFlowTotals, formatCurrency } from '../../utils/finance';
 import { Search, Link2, Eye, ArrowUpDown, X, BookOpen, RotateCcw } from 'lucide-react';
+import { useI18n } from '../../i18n';
 
 const TX_TYPES: TransactionType[] = [
   'Deposit',
@@ -21,6 +22,7 @@ const TX_TYPES: TransactionType[] = [
 ];
 
 export const TransactionsPage: React.FC = () => {
+  const { t, l } = useI18n();
   const { transactions, journalEntries, baseCurrency } = useOFinance();
   const navigate = useNavigate();
 
@@ -112,23 +114,23 @@ export const TransactionsPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            Transactions & Transfer Linking Center (DEMO)
+            {t.transactions.title}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Normalized multi-currency bank and brokerage ledger stream. Internal cross-account transfers are linked to prevent double counting.
+            {t.transactions.subtitle}
           </p>
         </div>
 
         {/* Summary Metrics Strip (Confirmed Posted vs Pending/Unconfirmed) */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
           <div className="px-2.5 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-            <span className="text-slate-400 mr-1.5">Posted Inflow ({baseCurrency}):</span>
+            <span className="text-slate-400 mr-1.5">{t.transactions.totalInflows} ({baseCurrency}):</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">
               {formatCurrency(cashFlowSummary.totalInflow, baseCurrency, { showSign: true })}
             </span>
           </div>
           <div className="px-2.5 py-1.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-            <span className="text-slate-400 mr-1.5">Posted Outflow ({baseCurrency}):</span>
+            <span className="text-slate-400 mr-1.5">{t.transactions.totalOutflows} ({baseCurrency}):</span>
             <span className="text-rose-600 dark:text-rose-400 font-semibold tabular-nums">
               -{formatCurrency(cashFlowSummary.totalOutflow, baseCurrency)}
             </span>
@@ -136,13 +138,13 @@ export const TransactionsPage: React.FC = () => {
           {(cashFlowSummary.pendingOutflow > 0 || cashFlowSummary.pendingInflow > 0) && (
             <div className="px-2.5 py-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 tabular-nums">
               <span>
-                Unconfirmed / Pending: -{formatCurrency(cashFlowSummary.pendingOutflow, baseCurrency)} (Excluded from Posted)
+                {t.common.pending}: -{formatCurrency(cashFlowSummary.pendingOutflow, baseCurrency)}
               </span>
             </div>
           )}
           <div className="px-2.5 py-1.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 tabular-nums">
             <span>
-              Transfers Excluded: {formatCurrency(cashFlowSummary.excludedTransferVolume, baseCurrency)} ({cashFlowSummary.transferPairCount} Pairs)
+              {t.transactions.transferVolume}: {formatCurrency(cashFlowSummary.excludedTransferVolume, baseCurrency)} ({cashFlowSummary.transferPairCount} {t.transactions.transferPairsCount})
             </span>
           </div>
         </div>
@@ -160,7 +162,7 @@ export const TransactionsPage: React.FC = () => {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search description, payee, symbol, category..."
+            placeholder={t.transactions.searchPlaceholder}
             className="w-full pl-8 pr-3 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -174,13 +176,14 @@ export const TransactionsPage: React.FC = () => {
           }}
           className="px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
         >
-          <option value="ALL">All Accounts (6)</option>
-          <option value="acc-ibkr">Interactive Brokers</option>
-          <option value="acc-schwab">Charles Schwab</option>
-          <option value="acc-firstrade">Firstrade</option>
-          <option value="acc-us-bank">US Bank Checking</option>
-          <option value="acc-uk-bank">UK Bank Sterling</option>
-          <option value="acc-eu-bank">European Bank Euro</option>
+          <option value="ALL">{t.transactions.filterAccount} {t.transactions.filterAll}</option>
+          <option value="acc-ibkr">{l('Interactive Brokers')}</option>
+          <option value="acc-schwab">{l('Charles Schwab')}</option>
+          <option value="acc-firstrade">{l('Firstrade')}</option>
+          <option value="acc-us-bank">{l('US Bank Checking')}</option>
+          <option value="acc-uk-bank">{l('UK Bank (Simulated)')}</option>
+          <option value="acc-eu-bank">{l('European Bank Depot')}</option>
+          <option value="acc-cny-bank">{l('Bank of China (Hong Kong)')}</option>
         </select>
 
         <select
@@ -192,10 +195,11 @@ export const TransactionsPage: React.FC = () => {
           }}
           className="px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 font-mono"
         >
-          <option value="ALL">All Currencies</option>
+          <option value="ALL">{t.transactions.filterCurrency} {t.transactions.filterAll}</option>
           <option value="USD">USD ($)</option>
           <option value="GBP">GBP (£)</option>
           <option value="EUR">EUR (€)</option>
+          <option value="CNY">CNY (¥)</option>
         </select>
 
         <select
@@ -207,10 +211,10 @@ export const TransactionsPage: React.FC = () => {
           }}
           className="px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
         >
-          <option value="ALL">All Types (12)</option>
-          {TX_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          <option value="ALL">{t.transactions.filterType} {t.transactions.filterAll}</option>
+          {TX_TYPES.map((tType) => (
+            <option key={tType} value={tType}>
+              {l(tType)}
             </option>
           ))}
         </select>
@@ -225,10 +229,10 @@ export const TransactionsPage: React.FC = () => {
             }}
             className="flex-1 px-2 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
           >
-            <option value="ALL">All Flows</option>
-            <option value="Inflow">Inflow (+)</option>
-            <option value="Outflow">Outflow (-)</option>
-            <option value="Internal Transfer">Transfer Link</option>
+            <option value="ALL">{t.transactions.filterDirection} {t.transactions.filterAll}</option>
+            <option value="Inflow">{t.common.inflow} (+)</option>
+            <option value="Outflow">{t.common.outflow} (-)</option>
+            <option value="Internal Transfer">{t.transactions.transferBadge}</option>
           </select>
 
           <select
@@ -240,16 +244,16 @@ export const TransactionsPage: React.FC = () => {
             }}
             className="flex-1 px-2 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
           >
-            <option value="ALL">All Ledger States</option>
-            <option value="Posted">Posted</option>
-            <option value="Pending Approval">Pending Approval</option>
+            <option value="ALL">{t.transactions.filterLedger} {t.transactions.filterAll}</option>
+            <option value="Posted">{t.common.posted}</option>
+            <option value="Pending Approval">{t.common.pending}</option>
             <option value="Anomaly Flagged">Anomaly Flagged</option>
           </select>
 
           <button
             type="button"
             onClick={resetFilters}
-            title="Reset all transaction filters"
+            title={t.transactions.resetFilters}
             className="px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -275,13 +279,13 @@ export const TransactionsPage: React.FC = () => {
                     }}
                     className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
                   >
-                    <span>Date</span>
+                    <span>{t.transactions.colDate}</span>
                     <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </th>
-                <th className="py-2.5 px-3 font-medium">Institution / Account</th>
-                <th className="py-2.5 px-3 font-medium">Type</th>
-                <th className="py-2.5 px-3 font-medium">Description & Transfer Link</th>
+                <th className="py-2.5 px-3 font-medium">{t.transactions.colInstitution}</th>
+                <th className="py-2.5 px-3 font-medium">{t.transactions.colType}</th>
+                <th className="py-2.5 px-3 font-medium">{t.transactions.colDescription}</th>
                 <th className="py-2.5 px-2 font-medium">Symbol</th>
                 <th className="py-2.5 px-2 font-medium text-right">Qty / Price</th>
                 <th className="py-2.5 px-2 font-medium text-right">Fees</th>
@@ -297,26 +301,26 @@ export const TransactionsPage: React.FC = () => {
                     }}
                     className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
                   >
-                    <span>Amount</span>
+                    <span>{t.transactions.colAmount}</span>
                     <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </th>
-                <th className="py-2.5 px-3 font-medium">Category</th>
-                <th className="py-2.5 px-3 font-medium">Ledger Status</th>
-                <th className="py-2.5 px-3 font-medium text-right">Inspect</th>
+                <th className="py-2.5 px-3 font-medium">{t.transactions.colCategory}</th>
+                <th className="py-2.5 px-3 font-medium">{t.transactions.colLedgerStatus}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.transactions.colAction}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
               {paginatedTx.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-8 text-center text-slate-500 dark:text-slate-400">
-                    No transactions match the active filter criteria.{' '}
+                    {t.transactions.noMatching}{' '}
                     <button
                       type="button"
                       onClick={resetFilters}
                       className="text-blue-600 dark:text-blue-400 underline font-medium ml-1"
                     >
-                      Reset Filters
+                      {t.transactions.resetFilters}
                     </button>
                   </td>
                 </tr>
@@ -331,11 +335,11 @@ export const TransactionsPage: React.FC = () => {
                     {tx.date}
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{tx.institution}</div>
+                    <div className="font-medium text-slate-900 dark:text-slate-100">{l(tx.institution)}</div>
                     <div className="text-[10px] text-slate-400">{tx.id}</div>
                   </td>
                   <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                    {tx.type}
+                    {l(tx.type)}
                   </td>
                   <td className="py-2.5 px-3 max-w-sm">
                     <div className="text-slate-900 dark:text-slate-100 truncate">{tx.description}</div>
@@ -343,7 +347,7 @@ export const TransactionsPage: React.FC = () => {
                       <div className="flex items-center gap-1 text-[11px] font-mono text-blue-600 dark:text-blue-400 mt-0.5">
                         <Link2 className="w-3 h-3 shrink-0" />
                         <span>
-                          Linked Transfer [{tx.transferGroupId}] ↔ {tx.transferCounterpartyAccount}
+                          {t.transactions.transferBadge} [{tx.transferGroupId}] ↔ {l(tx.transferCounterpartyAccount)}
                         </span>
                       </div>
                     )}
@@ -369,7 +373,7 @@ export const TransactionsPage: React.FC = () => {
                     {formatCurrency(tx.amount, tx.currency, { showSign: true })} {tx.currency}
                   </td>
                   <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 truncate max-w-[160px]">
-                    {tx.category}
+                    {l(tx.category)}
                   </td>
                   <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap">
                     <span
@@ -381,7 +385,7 @@ export const TransactionsPage: React.FC = () => {
                           : 'text-amber-600 dark:text-amber-400 font-semibold'
                       }
                     >
-                      {tx.ledgerStatus}
+                      {l(tx.ledgerStatus)}
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right">
@@ -394,7 +398,7 @@ export const TransactionsPage: React.FC = () => {
                       className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 text-[11px]"
                     >
                       <Eye className="w-3 h-3" />
-                      <span>Detail</span>
+                      <span>{t.transactions.inspectBtn}</span>
                     </button>
                   </td>
                 </tr>
@@ -447,7 +451,7 @@ export const TransactionsPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
-                  Transaction Inspector · {selectedTx.id} ({selectedTx.type})
+                  {t.transactions.modalTitle} · {selectedTx.id} ({l(selectedTx.type)})
                 </h3>
                 <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                   Data Source: {selectedTx.dataSource} · DEMO DATA
@@ -455,7 +459,7 @@ export const TransactionsPage: React.FC = () => {
               </div>
               <button
                 type="button"
-                aria-label="Close transaction detail modal"
+                aria-label={t.transactions.closeModal}
                 onClick={() => setSelectedTx(null)}
                 className="text-slate-400 hover:text-slate-200"
               >
@@ -465,43 +469,43 @@ export const TransactionsPage: React.FC = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono bg-slate-50 dark:bg-slate-900/80 p-3 rounded border border-slate-200 dark:border-slate-800">
               <div>
-                <span className="text-[10px] text-slate-400 block">Date</span>
+                <span className="text-[10px] text-slate-400 block">{t.transactions.colDate}</span>
                 <span>{selectedTx.date}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block">Account</span>
-                <span>{selectedTx.accountName}</span>
+                <span className="text-[10px] text-slate-400 block">{t.accounts.accountName}</span>
+                <span>{l(selectedTx.accountName)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block">Net Amount</span>
+                <span className="text-[10px] text-slate-400 block">{t.transactions.colAmount}</span>
                 <span className="font-bold">
                   {formatCurrency(selectedTx.amount, selectedTx.currency, { showSign: true })}{' '}
                   {selectedTx.currency}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block">Payee / Counterparty</span>
+                <span className="text-[10px] text-slate-400 block">{t.transactions.colDescription}</span>
                 <span>{selectedTx.payee}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block">Beancount Account</span>
+                <span className="text-[10px] text-slate-400 block">{t.accounting.colAccount}</span>
                 <span>{selectedTx.category}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block">Ledger Status</span>
-                <span>{selectedTx.ledgerStatus}</span>
+                <span className="text-[10px] text-slate-400 block">{t.transactions.colLedgerStatus}</span>
+                <span>{l(selectedTx.ledgerStatus)}</span>
               </div>
             </div>
 
             {selectedTx.transferGroupId && (
               <div className="p-3 rounded bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-xs font-mono">
-                Transfer Linking Active ({selectedTx.transferGroupId}): Matched with counterparty account "{selectedTx.transferCounterpartyAccount}". Excluded from income/expense cash flow totals.
+                {t.transactions.transferBadge} ({selectedTx.transferGroupId}): {l(selectedTx.transferCounterpartyAccount)}.
               </div>
             )}
 
             <div>
               <div className="text-[11px] font-semibold text-slate-500 mb-1">
-                Raw Institution Feed Payload (JSON)
+                {t.transactions.rawPayloadTitle}
               </div>
               <pre className="p-2.5 rounded bg-slate-950 text-emerald-400 font-mono text-[11px] overflow-x-auto">
                 {selectedTx.rawSourceJson}
@@ -511,7 +515,7 @@ export const TransactionsPage: React.FC = () => {
             {linkedJournal && (
               <div>
                 <div className="text-[11px] font-semibold text-slate-500 mb-1">
-                  Linked Beancount Double-Entry Journal ({linkedJournal.id})
+                  Beancount Double-Entry Journal ({linkedJournal.id})
                 </div>
                 <pre className="p-2.5 rounded bg-slate-950 text-blue-300 font-mono text-[11px] overflow-x-auto">
                   {linkedJournal.rawBeancount}
@@ -529,14 +533,14 @@ export const TransactionsPage: React.FC = () => {
                 className="px-3 py-1.5 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-500 flex items-center gap-1.5"
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>Inspect in Accounting Ledger</span>
+                <span>{t.accounting.title}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
                 className="px-3 py-1.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-medium"
               >
-                Close
+                {t.transactions.closeModal}
               </button>
             </div>
           </div>

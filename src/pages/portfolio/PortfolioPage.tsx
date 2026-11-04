@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useOFinance } from '../../app/providers/OFinanceContext';
-import { AssetClass, PortfolioHolding } from '../../types';
+import { AssetClass, PortfolioHolding, CurrencyCode } from '../../types';
 import { convertCurrency, formatCurrency, formatPercent } from '../../utils/finance';
 import { ArrowUpDown, Eye, X, PieChart, DollarSign, TrendingUp } from 'lucide-react';
+import { useI18n } from '../../i18n';
 
 const ASSET_CLASSES: AssetClass[] = [
   'US Equities',
@@ -16,6 +17,7 @@ const ASSET_CLASSES: AssetClass[] = [
 ];
 
 const DIVIDEND_HISTORY_YTD = [
+  { id: 'DIV-2026-15', exDate: '2026-07-10', payDate: '2026-07-18', symbol: '600036.SH', security: 'China Merchants Bank (招商银行)', account: 'Bank of China (Hong Kong)', grossAmount: 1980.0, withholdingTax: 198.0, netAmount: 1782.0, currency: 'CNY', ledgerAccount: 'Income:Dividends:BOC:600036' },
   { id: 'DIV-2026-14', exDate: '2026-10-25', payDate: '2026-10-29', symbol: 'SCHD', security: 'Schwab US Dividend Equity ETF', account: 'Charles Schwab', grossAmount: 362.64, withholdingTax: 0.0, netAmount: 362.64, currency: 'USD', ledgerAccount: 'Income:Dividends:Schwab:SCHD' },
   { id: 'DIV-2026-13', exDate: '2026-10-18', payDate: '2026-10-22', symbol: 'TSM', security: 'Taiwan Semiconductor ADR', account: 'Firstrade', grossAmount: 340.0, withholdingTax: 71.4, netAmount: 268.6, currency: 'USD', ledgerAccount: 'Income:Dividends:Firstrade:TSM' },
   { id: 'DIV-2026-12', exDate: '2026-10-01', payDate: '2026-10-15', symbol: 'O', security: 'Realty Income Corp REIT', account: 'Charles Schwab', grossAmount: 269.85, withholdingTax: 0.0, netAmount: 269.85, currency: 'USD', ledgerAccount: 'Income:Dividends:Schwab:O' },
@@ -28,6 +30,7 @@ const DIVIDEND_HISTORY_YTD = [
 ];
 
 export const PortfolioPage: React.FC = () => {
+  const { t, l } = useI18n();
   const { holdings, wealthSummary, netWorthHistory, baseCurrency } = useOFinance();
 
   const [accountFilter, setAccountFilter] = useState('ALL');
@@ -147,10 +150,10 @@ export const PortfolioPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white">
-            Institutional Portfolio & Multi-Brokerage Holdings (DEMO)
+            {t.portfolio.title}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Aggregated positions across Interactive Brokers, Charles Schwab, Firstrade, and Frankfurt Euro Depot. All market prices are simulated snapshots.
+            {t.portfolio.subtitle}
           </p>
         </div>
         <span className="text-xs font-mono text-amber-600 dark:text-amber-400">
@@ -161,15 +164,15 @@ export const PortfolioPage: React.FC = () => {
       {/* Portfolio Summary Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 font-mono">
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Total Portfolio Value</div>
+          <div className="text-[11px] text-slate-500">{t.overview.totalInvestments}</div>
           <div className="text-base font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(portfolioMetrics.totalMarketVal, baseCurrency)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Matches Overview Inv</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{t.overview.totalInvestmentsSub}</div>
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Total Cost Basis</div>
+          <div className="text-[11px] text-slate-500">{t.portfolio.totalCostBasis}</div>
           <div className="text-base font-semibold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(portfolioMetrics.totalCostBasis, baseCurrency)}
           </div>
@@ -177,7 +180,7 @@ export const PortfolioPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Unrealized P&L</div>
+          <div className="text-[11px] text-slate-500">{t.portfolio.unrealizedPnL}</div>
           <div className="text-base font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {formatCurrency(portfolioMetrics.unrealizedPnL, baseCurrency, { showSign: true })}
           </div>
@@ -187,7 +190,7 @@ export const PortfolioPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Realized P&L (YTD)</div>
+          <div className="text-[11px] text-slate-500">{t.portfolio.realizedPnLYTD}</div>
           <div className="text-base font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {formatCurrency(portfolioMetrics.totalRealized, baseCurrency, { showSign: true })}
           </div>
@@ -195,7 +198,7 @@ export const PortfolioPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Dividends (YTD)</div>
+          <div className="text-[11px] text-slate-500">{t.portfolio.totalDividends}</div>
           <div className="text-base font-semibold text-blue-600 dark:text-blue-400 mt-1 tabular-nums">
             {formatCurrency(portfolioMetrics.totalDividends, baseCurrency)}
           </div>
@@ -203,19 +206,19 @@ export const PortfolioPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Total Cash Reserve</div>
+          <div className="text-[11px] text-slate-500">{t.overview.totalCash}</div>
           <div className="text-base font-semibold text-slate-900 dark:text-white mt-1 tabular-nums">
             {formatCurrency(wealthSummary.totalCash, baseCurrency)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Across 6 Accounts</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{t.overview.totalCashSub}</div>
         </div>
 
         <div className="p-3.5 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] text-slate-500">Portfolio Return</div>
+          <div className="text-[11px] text-slate-500">{t.overview.overallReturn}</div>
           <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             {formatPercent(wealthSummary.overallReturnPct)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Total Return incl. Div</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{t.overview.totalROI}</div>
         </div>
       </div>
 
@@ -228,11 +231,11 @@ export const PortfolioPage: React.FC = () => {
             onChange={(e) => setAccountFilter(e.target.value)}
             className="px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
           >
-            <option value="ALL">All Investment Accounts (4)</option>
-            <option value="acc-ibkr">Interactive Brokers ($312.5K)</option>
-            <option value="acc-schwab">Charles Schwab ($198.7K)</option>
-            <option value="acc-firstrade">Firstrade ($74.3K)</option>
-            <option value="acc-eu-bank">Frankfurt Euro Depot (€28.5K)</option>
+            <option value="ALL">{t.portfolio.filterAccount} {t.common.all}</option>
+            <option value="acc-ibkr">{l('Interactive Brokers')}</option>
+            <option value="acc-schwab">{l('Charles Schwab')}</option>
+            <option value="acc-firstrade">{l('Firstrade')}</option>
+            <option value="acc-eu-bank">{l('European Bank Depot')}</option>
           </select>
 
           <select
@@ -241,10 +244,10 @@ export const PortfolioPage: React.FC = () => {
             onChange={(e) => setMarketFilter(e.target.value)}
             className="px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
           >
-            <option value="ALL">All Markets (US / EU / Global)</option>
-            <option value="US">US Market</option>
+            <option value="ALL">{t.portfolio.filterMarket} {t.common.all}</option>
+            <option value="US">US Market (NYSE / NASDAQ)</option>
             <option value="EU">European Market (XETRA / ADR)</option>
-            <option value="Global">Global UCITS / ADR</option>
+            <option value="Global">Global (HKEX / UCITS)</option>
           </select>
 
           <select
@@ -253,17 +256,17 @@ export const PortfolioPage: React.FC = () => {
             onChange={(e) => setAssetTypeFilter(e.target.value)}
             className="px-2.5 py-1.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
           >
-            <option value="ALL">All Asset Classes</option>
+            <option value="ALL">{t.portfolio.filterAsset} {t.common.all}</option>
             {ASSET_CLASSES.map((ac) => (
               <option key={ac} value={ac}>
-                {ac}
+                {l(ac)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="flex items-center gap-2 font-mono">
-          <span className="text-slate-400">Sort by:</span>
+          <span className="text-slate-400">Sort:</span>
           {(['marketValue', 'returnPct', 'unrealizedPnL'] as const).map((field) => (
             <button
               key={field}
@@ -282,7 +285,7 @@ export const PortfolioPage: React.FC = () => {
               }`}
             >
               <span>
-                {field === 'marketValue' ? 'Value' : field === 'returnPct' ? 'Return %' : 'Unrealized P&L'}
+                {field === 'marketValue' ? t.portfolio.colMarketValue : field === 'returnPct' ? t.portfolio.colReturnPct : t.portfolio.colUnrealizedPnL}
               </span>
               <ArrowUpDown className="w-3 h-3" />
             </button>
@@ -296,18 +299,18 @@ export const PortfolioPage: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/40">
-                <th className="py-2.5 px-3 font-medium">Symbol</th>
-                <th className="py-2.5 px-3 font-medium">Security Name</th>
-                <th className="py-2.5 px-3 font-medium">Asset Type</th>
-                <th className="py-2.5 px-3 font-medium">Account</th>
-                <th className="py-2.5 px-3 font-medium text-right">Quantity</th>
-                <th className="py-2.5 px-3 font-medium text-right">Avg Cost</th>
-                <th className="py-2.5 px-3 font-medium text-right">Current Price</th>
-                <th className="py-2.5 px-3 font-medium text-right">Market Value</th>
-                <th className="py-2.5 px-3 font-medium text-right">Unrealized P&L</th>
-                <th className="py-2.5 px-3 font-medium text-right">Return %</th>
+                <th className="py-2.5 px-3 font-medium">{t.portfolio.colSymbol}</th>
+                <th className="py-2.5 px-3 font-medium">{t.portfolio.colSecurity}</th>
+                <th className="py-2.5 px-3 font-medium">{t.portfolio.colAssetType}</th>
+                <th className="py-2.5 px-3 font-medium">{t.portfolio.colAccount}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colQuantity}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colAvgCost}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colCurrentPrice}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colMarketValue}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colUnrealizedPnL}</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colReturnPct}</th>
                 <th className="py-2.5 px-2 font-medium">Ccy</th>
-                <th className="py-2.5 px-3 font-medium text-right">Inspect</th>
+                <th className="py-2.5 px-3 font-medium text-right">{t.portfolio.colAction}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
@@ -555,14 +558,14 @@ export const PortfolioPage: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Dividend Distribution & Foreign Tax Withholding Ledger (YTD Simulated)
+                {t.portfolio.dividendTitle}
               </h2>
               <p className="text-[11px] text-slate-500">
-                Tracks gross cash distributions, foreign ADR/XETRA withholding taxes, and net cash credited across all 4 investment accounts.
+                {t.portfolio.dividendSubtitle}
               </p>
             </div>
             <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-              YTD Total Dividends ({baseCurrency}): {formatCurrency(portfolioMetrics.totalDividends, baseCurrency)}
+              {t.portfolio.totalDividends} ({baseCurrency}): {formatCurrency(portfolioMetrics.totalDividends, baseCurrency)}
             </span>
           </div>
 
@@ -572,12 +575,12 @@ export const PortfolioPage: React.FC = () => {
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
                   <th className="py-2 pr-3 font-medium">Dist ID</th>
                   <th className="py-2 px-3 font-medium">Ex-Date / Pay Date</th>
-                  <th className="py-2 px-3 font-medium">Symbol & Security</th>
-                  <th className="py-2 px-3 font-medium">Account</th>
+                  <th className="py-2 px-3 font-medium">{t.portfolio.colSymbol} & {t.portfolio.colSecurity}</th>
+                  <th className="py-2 px-3 font-medium">{t.portfolio.colAccount}</th>
                   <th className="py-2 px-3 font-medium text-right">Gross Div</th>
                   <th className="py-2 px-3 font-medium text-right">Tax Withheld</th>
                   <th className="py-2 px-3 font-medium text-right">Net Cash</th>
-                  <th className="py-2 pl-3 font-medium">Beancount Income Account</th>
+                  <th className="py-2 pl-3 font-medium">{t.accounting.colAccount}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-[11px]">
@@ -591,17 +594,17 @@ export const PortfolioPage: React.FC = () => {
                       <span className="font-mono font-bold text-slate-900 dark:text-white">{d.symbol}</span> ·{' '}
                       <span className="text-slate-600 dark:text-slate-300">{d.security}</span>
                     </td>
-                    <td className="py-2.5 px-3 font-sans text-slate-600 dark:text-slate-300">{d.account}</td>
+                    <td className="py-2.5 px-3 font-sans text-slate-600 dark:text-slate-300">{l(d.account)}</td>
                     <td className="py-2.5 px-3 text-right tabular-nums">
-                      {formatCurrency(d.grossAmount, d.currency as 'USD' | 'EUR')} {d.currency}
+                      {formatCurrency(d.grossAmount, d.currency as CurrencyCode)} {d.currency}
                     </td>
                     <td className="py-2.5 px-3 text-right tabular-nums text-rose-500">
                       {d.withholdingTax > 0
-                        ? `-${formatCurrency(d.withholdingTax, d.currency as 'USD' | 'EUR')}`
+                        ? `-${formatCurrency(d.withholdingTax, d.currency as CurrencyCode)}`
                         : '0.00'}
                     </td>
                     <td className="py-2.5 px-3 text-right tabular-nums font-bold text-emerald-600 dark:text-emerald-400">
-                      +{formatCurrency(d.netAmount, d.currency as 'USD' | 'EUR')} {d.currency}
+                      +{formatCurrency(d.netAmount, d.currency as CurrencyCode)} {d.currency}
                     </td>
                     <td className="py-2.5 pl-3 text-slate-500">{d.ledgerAccount}</td>
                   </tr>
@@ -746,7 +749,7 @@ export const PortfolioPage: React.FC = () => {
 
             <div>
               <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Position Lot & Change History (Simulated)
+                {t.portfolio.lotModalTitle}
               </div>
               <div className="space-y-1.5 font-mono text-xs">
                 {selectedHolding.recentChanges.map((ch, idx) => (
@@ -755,7 +758,7 @@ export const PortfolioPage: React.FC = () => {
                     className="p-2 rounded bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex items-center justify-between"
                   >
                     <span>
-                      {ch.date} · <strong>{ch.action}</strong>
+                      {ch.date} · <strong>{l(ch.action)}</strong>
                     </span>
                     <span>
                       {ch.shares > 0 ? `${ch.shares} shares @ ` : '@ '}
@@ -772,7 +775,7 @@ export const PortfolioPage: React.FC = () => {
                 onClick={() => setSelectedHolding(null)}
                 className="px-4 py-1.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-medium"
               >
-                Close
+                {t.portfolio.closeModal}
               </button>
             </div>
           </div>

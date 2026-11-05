@@ -61,19 +61,24 @@ class AuditService:
         Prevents genesis forks and concurrent head splits via PostgreSQL transaction-level
         advisory lock and row-level locks.
         """
-        async with cls._local_mutex:
-            # 1. Acquire PostgreSQL transaction-level advisory lock if running on PostgreSQL
+        bind = session.bind
+        dialect_name = bind.dialect.name if bind else ""
+        is_postgres = dialect_name == "postgresql"
+
+        # 1. Acquire PostgreSQL transaction-level advisory lock if running on PostgreSQL
+        if is_postgres:
             try:
-                bind = session.bind
-                dialect_name = bind.dialect.name if bind else ""
-                if dialect_name == "postgresql":
-                    await session.execute(
-                        text("SELECT pg_advisory_xact_lock(:lock_id)"),
-                        {"lock_id": cls.AUDIT_CHAIN_LOCK_ID},
-                    )
+                await session.execute(
+                    text("SELECT pg_advisory_xact_lock(:lock_id)"),
+                    {"lock_id": cls.AUDIT_CHAIN_LOCK_ID},
+                )
             except Exception as e:
-                # If non-pg or mock connection doesn't support pg_advisory_xact_lock, log and proceed
-                logger.debug("Advisory lock check skipped or not supported on dialect: %s", str(e))
+                # CRITICAL SECURITY FIX: Advisory lock failure must fail-closed
+                logger.error("Advisory lock acquisition failed: %s", str(e))
+                raise RuntimeError(f"ADVISORY_LOCK_FAILURE: PostgreSQL advisory lock acquisition failed. Operation aborted for security.") from e
+
+        # In non-PostgreSQL (e.g. SQLite / in-memory test databases), use local in-process mutex
+        async with (cls._local_mutex if not is_postgres else asyncio.Lock()):
 
             # 2. Query latest audit log entry with row lock
             stmt = (
@@ -122,9 +127,9 @@ class AuditService:
         if not entries:
             return True, None
 
-        # Verify genesis
+        # Verify genesis - MUST strictly equal GENESIS_HASH (64 zeroes)
         first = entries[0]
-        if first.prev_hash not in (cls.GENESIS_HASH, "", "GENESIS"):
-            return False, f"Genesis link invalid on entry {first.id}: prev_hash is '{first.prev_hash}'"
+        if first.prev_hash != cls.GENESIS_HASH:
+            return False, f"Genesis link invalid on entry {first.id}: prev_hash is '{first.prev_hash}', expected '{cls.GENESIS_HASH}'"
 
         return AuditLogModel.verify_chain(entries)

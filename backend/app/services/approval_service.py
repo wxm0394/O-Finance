@@ -193,7 +193,31 @@ class ApprovalService:
             return ApprovalVerificationResult(
                 is_valid=False,
                 status="MISSING_APPROVAL_ID",
+                approval_task_id=approval_task_id,
                 rejection_reason="APPROVAL_MISSING: Operation requires human approval, but no approval_task_id was provided.",
+            )
+
+        # 2. Validate Input Expectations
+        if not expected_task_mode or not expected_task_mode.strip():
+            return ApprovalVerificationResult(
+                is_valid=False,
+                status="INVALID_INPUT_EXPECTATION",
+                approval_task_id=approval_task_id,
+                rejection_reason="EXPECTATION_INVALID: expected_task_mode must be provided and non-empty.",
+            )
+        if not expected_action or not expected_action.strip():
+            return ApprovalVerificationResult(
+                is_valid=False,
+                status="INVALID_INPUT_EXPECTATION",
+                approval_task_id=approval_task_id,
+                rejection_reason="EXPECTATION_INVALID: expected_action must be provided and non-empty.",
+            )
+        if not expected_target or not expected_target.strip():
+            return ApprovalVerificationResult(
+                is_valid=False,
+                status="INVALID_INPUT_EXPECTATION",
+                approval_task_id=approval_task_id,
+                rejection_reason="EXPECTATION_INVALID: expected_target must be provided and non-empty.",
             )
 
         clean_id = approval_task_id.strip()
@@ -217,14 +241,14 @@ class ApprovalService:
                 )
 
             # 3. Check Mandatory Binding Integrity in Database Record
-            if not task.action or not task.target or not task.payload_hash:
+            if not task.task_mode or not task.action or not task.target or not task.payload_hash:
                 return ApprovalVerificationResult(
                     is_valid=False,
                     status="INCOMPLETE_APPROVAL_BINDING",
                     approval_task_id=clean_id,
                     rejection_reason=(
                         f"APPROVAL_INCOMPLETE: Approval task '{clean_id}' lacks mandatory binding fields "
-                        "(action, target, or payload_hash). Unbound approvals are strictly invalid."
+                        "(task_mode, action, target, or payload_hash). Unbound approvals are strictly invalid."
                     ),
                 )
 

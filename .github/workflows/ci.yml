@@ -43,6 +43,21 @@ jobs:
       run:
         working-directory: backend
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ofinance_test
+          POSTGRES_PASSWORD: local_test_only
+          POSTGRES_DB: ofinance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ofinance_test -d ofinance_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -58,9 +73,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Configure test database URL
+        run: |
+          echo "OFINANCE_TEST_DATABASE_URL=postgresql+psycopg://ofinance_test:local_test_only@localhost:5432/ofinance_test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql+psycopg://ofinance_test:local_test_only@localhost:5432/ofinance_test" >> $GITHUB_ENV
+
       - name: Verify Python syntax
         run: |
           python -m py_compile app/main.py app/core/*.py app/schemas/*.py app/models/*.py app/services/*.py app/api/v1/*.py app/assistant/*.py app/ledger/*.py tests/*.py migrations/*.py migrations/versions/*.py
 
-      - name: Run backend pytest suite
+      - name: Run database migrations via Alembic
+        run: |
+          alembic upgrade head
+
+      - name: Run backend pytest suite (unit & integration)
         run: pytest -v

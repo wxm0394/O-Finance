@@ -22,10 +22,11 @@
 - **Automated Audit Hash Chaining**: Implemented `AuditService.append_entry` with row-level locking (`SELECT ... FOR UPDATE`), automated `prev_hash` linkage, full chain verification (`verify_database_chain`), and explicit threat model documentation.
 - **Database Probe Timeout Tests**: Automated testing of normal connections, unconfigured states, and hanging query timeouts with resource cleanup.
 
-## Phase 2.2: Pydantic AI Harness & Beancount Runtime Integration (Planned)
+## Phase 2.2: Pydantic AI Harness & Beancount Runtime Integration (Completed)
 - Wire `OFinanceAssistantRuntime` in `backend/app/assistant/runtime.py` with real Pydantic AI agent, tool registries, and Gemini 2.5 streaming.
 - Implement formal Beancount plain-text accounting bridge in `backend/app/ledger/beancount_bridge.py` interfacing with `bean-check` and Fava daemon.
 - Maintain PostgreSQL as transactional, approval, and audit store; Beancount as the sole double-entry source of truth.
+- Expose ApprovalService, AuditService, and BeancountBridge via FastAPI routes under `/api/v1`.
 
 ## Phase 2.3: DuckDB + Parquet Analytical Engine (Planned)
 - Implement analytical store in `data/` using DuckDB and Parquet files for high-throughput quantitative strategy backtesting and historical OHLCV research.

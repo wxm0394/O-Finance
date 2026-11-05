@@ -21,7 +21,7 @@ class HealthService:
     """Evaluates health across all core subsystems without falsification."""
 
     @classmethod
-    async def get_health_status() -> HealthCheckDto:
+    async def get_health_status(cls) -> HealthCheckDto:
         # 1. Database Check (real SELECT 1 probe with strict timeout)
         db_reachable, db_detail = await check_database_connection(timeout_seconds=2.0)
         if not settings.is_database_configured:

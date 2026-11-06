@@ -1,5 +1,6 @@
 const { app, BrowserWindow, shell } = require('electron');
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
+const http = require('http');
 const net = require('net');
 const path = require('path');
 
@@ -26,6 +27,45 @@ function isPort8000Listening() {
       resolve(false);
     });
     socket.connect(8000, '127.0.0.1');
+  });
+}
+
+/**
+ * Poll http://127.0.0.1:8000/healthz every 250ms, max 15s timeout (60 retries)
+ */
+function waitForBackendHealth(timeoutMs = 15000, intervalMs = 250) {
+  const startTime = Date.now();
+  return new Promise((resolve) => {
+    const check = () => {
+      const req = http.get('http://127.0.0.1:8000/healthz', (res) => {
+        if (res.statusCode === 200) {
+          resolve(true);
+        } else if (Date.now() - startTime >= timeoutMs) {
+          resolve(false);
+        } else {
+          setTimeout(check, intervalMs);
+        }
+      });
+
+      req.on('error', () => {
+        if (Date.now() - startTime >= timeoutMs) {
+          resolve(false);
+        } else {
+          setTimeout(check, intervalMs);
+        }
+      });
+
+      req.setTimeout(1000, () => {
+        req.destroy();
+        if (Date.now() - startTime >= timeoutMs) {
+          resolve(false);
+        } else {
+          setTimeout(check, intervalMs);
+        }
+      });
+    };
+
+    check();
   });
 }
 
@@ -117,10 +157,33 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://127.0.0.1:3000';
-  mainWindow.loadURL(devServerUrl).catch((err) => {
-    console.error('[Desktop Main] Failed to load URL:', err.message);
-  });
+  loadAppContent();
+}
+
+async function loadAppContent() {
+  const targetUrl = process.env.OFINANCE_DESKTOP_URL || 'http://127.0.0.1:8000/';
+  const fallbackFile = path.join(__dirname, '../dist/index.html');
+
+  console.log('[Desktop Main] Polling backend health on http://127.0.0.1:8000/healthz...');
+  const isHealthy = await waitForBackendHealth(15000, 250);
+
+  if (isHealthy) {
+    console.log(`[Desktop Main] Backend healthy. Loading URL: ${targetUrl}`);
+    try {
+      await mainWindow.loadURL(targetUrl);
+      return;
+    } catch (err) {
+      console.error('[Desktop Main] Failed to load target URL:', err.message);
+    }
+  } else {
+    console.warn('[Desktop Main] Backend health probe timed out or failed. Falling back to local dist/index.html');
+  }
+
+  try {
+    await mainWindow.loadFile(fallbackFile);
+  } catch (err) {
+    console.error('[Desktop Main] Failed to load fallback file:', err.message);
+  }
 }
 
 app.whenReady().then(async () => {

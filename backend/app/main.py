@@ -4,10 +4,14 @@ Phase 2.1 Backend Foundation
 """
 
 import logging
+import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.database import get_engine
@@ -80,9 +84,43 @@ async def healthz() -> HealthCheckDto:
     return await HealthService.get_health_status()
 
 
-@app.get("/", tags=["System"], summary="API Root")
-async def root():
-    """Root landing endpoint with system identity."""
+# Host SPA Frontend (dist/) when directory exists
+project_root = Path(__file__).resolve().parent.parent.parent
+dist_dir = project_root / "dist"
+assets_dir = dist_dir / "assets"
+
+if assets_dir.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+@app.get("/{full_path:path}", tags=["System"], summary="SPA Catch-all Router")
+async def spa_catch_all(request: Request, full_path: str):
+    """
+    Catch-all router for SPA frontend.
+    Returns dist/index.html for client-side routing unless API/docs endpoints or non-HTML API root request.
+    """
+    if full_path.startswith("api/") or full_path == "healthz" or full_path in ("docs", "redoc", "openapi.json"):
+        return {
+            "system": "O-Finance Private Financial OS",
+            "version": "0.4.0",
+            "status": "operational",
+            "docs": "/docs",
+            "health": "/healthz",
+        }
+
+    index_html = dist_dir / "index.html"
+    if index_html.is_file():
+        accept = request.headers.get("accept", "")
+        # If API client requests root / without HTML accept header (e.g., test suite)
+        if full_path == "" and "text/html" not in accept:
+            return {
+                "system": "O-Finance Private Financial OS",
+                "version": "0.4.0",
+                "status": "operational",
+                "docs": "/docs",
+                "health": "/healthz",
+            }
+        return FileResponse(str(index_html))
+
     return {
         "system": "O-Finance Private Financial OS",
         "version": "0.4.0",
@@ -95,9 +133,19 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        "app.main:app",
-        host=settings.app_host,
-        port=settings.app_port,
-        reload=settings.app_env == "development",
-    )
+    # Desktop workstation mode: FastAPI runs on 127.0.0.1:8000 for Electron integration
+    if settings.app_env == "desktop":
+        uvicorn.run(
+            "app.main:app",
+            host="127.0.0.1",
+            port=8000,
+            reload=False,
+            log_level="info",
+        )
+    else:
+        uvicorn.run(
+            "app.main:app",
+            host=settings.app_host,
+            port=settings.app_port,
+            reload=settings.app_env == "development",
+        )

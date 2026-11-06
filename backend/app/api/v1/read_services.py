@@ -7,6 +7,9 @@ Ensures zero 404 errors when running frontend with VITE_DEMO_MODE=false.
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter
 
+from app.core.config import settings
+from app.ledger.beancount_bridge import BeancountBridge
+
 router = APIRouter(tags=["Read-Only Subsystem Feeds"])
 
 # Mock / seed fallback datasets matching frontend types and mock structures
@@ -361,7 +364,14 @@ async def get_market_calendar() -> List[Dict[str, Any]]:
 
 @router.get("/ledger/entries", summary="Get Journal Entries List")
 async def get_ledger_entries() -> List[Dict[str, Any]]:
-    return INITIAL_JOURNAL_ENTRIES
+    parsed = BeancountBridge.parse_ledger_entries_and_balances(settings.beancount_file_path)
+    file_entries = parsed.get("entries", [])
+    existing_ids = {e["id"] for e in file_entries if "id" in e}
+    result = list(file_entries)
+    for initial in INITIAL_JOURNAL_ENTRIES:
+        if initial["id"] not in existing_ids:
+            result.append(initial)
+    return result
 
 
 @router.get("/quant/backtests", summary="Get Backtest Registry List")

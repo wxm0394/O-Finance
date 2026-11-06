@@ -89,6 +89,9 @@ class SecurityGuard:
             "verify_trial_balance",
             "reconcile_discrepancy",
             "draft_journal_entry",
+            "read_accounts",
+            "read_holdings",
+            "verify_double_entry_balance",
         },
         "portfolio_analysis": {
             "query_holdings",
@@ -96,6 +99,7 @@ class SecurityGuard:
             "calculate_unrealized_pnl",
             "compute_dividend_projections",
             "check_concentration_exposure",
+            "read_holdings",
         },
         "research": {
             "query_watchlist",
@@ -114,12 +118,14 @@ class SecurityGuard:
             "verify_audit_hash_chain",
             "inspect_permission_matrix",
             "audit_unmatched_transactions",
+            "verify_double_entry_balance",
         },
         "risk_analysis": {
             "compute_value_at_risk",
             "stress_test_drawdown",
             "analyze_counterparty_exposure",
             "detect_volatility_anomaly",
+            "calculate_risk_metrics",
         },
     }
 
@@ -159,6 +165,10 @@ class SecurityGuard:
         "stress_test_drawdown",
         "analyze_counterparty_exposure",
         "detect_volatility_anomaly",
+        "read_accounts",
+        "read_holdings",
+        "verify_double_entry_balance",
+        "calculate_risk_metrics",
     }
 
     @classmethod

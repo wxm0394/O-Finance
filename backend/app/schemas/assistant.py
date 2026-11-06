@@ -3,7 +3,7 @@ O-Finance Assistant Schemas (Pydantic v2 DTOs)
 Strictly snake_case wire format matching the O-Finance Frontend API contract.
 """
 
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Any
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator
 
@@ -90,7 +90,7 @@ class AssistantRunResponseDto(BaseModel):
     task_mode: AssistantTaskMode
     prompt: str
     execution_origin: str = "LOCAL_FASTAPI_GEMINI"
-    status: Literal["completed", "pending_approval", "error", "scaffold_not_implemented"]
+    status: str
     message: str
     is_implemented: bool
     tool_steps: List[ToolStepDto] = Field(default_factory=list)
@@ -100,3 +100,15 @@ class AssistantRunResponseDto(BaseModel):
     created_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+
+
+class AssistantUsageDto(BaseModel):
+    daily_budget_usd: float = 25.0
+    spend_usd_today: float = 0.0
+    tokens_used_today: int = 0
+    budget_remaining_usd: float = 25.0
+
+
+class AssistantToolsDto(BaseModel):
+    available_tools: List[Dict[str, Any]] = Field(default_factory=list)
+    total_tools: int = 0

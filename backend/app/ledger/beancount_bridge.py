@@ -295,6 +295,151 @@ class BeancountBridgeScaffold:
             raise e
 
     @classmethod
+    def parse_ledger_entries_and_balances(cls, ledger_path: Union[str, Path]) -> Dict[str, Any]:
+        """
+        Parses a .beancount ledger file and returns all journal entries with their metadata
+        and computed cumulative account balances per currency.
+
+        Returns dict with keys:
+        - entries: List[Dict], each dict contains date, flag, payee, narration, tx_id, confidence,
+          audit_hash, postings (list of {account, amount, currency}), status="Posted", sourceTransactionId
+        - balances: Dict[str, Dict[str, float]], mapping account name -> {currency: balance}
+        """
+        target_path = Path(ledger_path).expanduser().resolve()
+        if not target_path.exists():
+            return {
+                "entries": [],
+                "balances": {},
+            }
+
+        try:
+            with open(target_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception:
+            return {
+                "entries": [],
+                "balances": {},
+            }
+
+        lines = content.splitlines()
+
+        entry_header_pattern = re.compile(
+            r"^(\d{4}-\d{2}-\d{2})\s+([\*\!])(?:\s+\"([^\"]*)\")?(?:\s+\"([^\"]*)\")?"
+        )
+        metadata_pattern = re.compile(
+            r"^\s+([a-zA-Z_][a-zA-Z0-9_]*):\s+(?:\"([^\"]*)\"|(-?[\d,.]+))"
+        )
+        posting_pattern = re.compile(
+            r"^\s+([A-Z][A-Za-z0-9:-]+)\s+(-?[\d,.]+)\s+([A-Z]{3})"
+        )
+
+        raw_entries: List[Dict[str, Any]] = []
+        balances: Dict[str, Dict[str, Decimal]] = {}
+
+        current_entry_header: Optional[Dict[str, str]] = None
+        current_postings: List[Dict[str, Any]] = []
+        current_metadata: Dict[str, Any] = {}
+
+        def finalize_entry():
+            nonlocal current_entry_header, current_postings, current_metadata
+            if current_entry_header and current_postings:
+                entry_id = current_metadata.get("tx_id", f"JE-{len(raw_entries) + 1:03d}")
+                entry_dict = {
+                    "id": entry_id,
+                    "date": current_entry_header["date"],
+                    "flag": current_entry_header["flag"],
+                    "payee": current_entry_header["payee"],
+                    "narration": current_entry_header["narration"],
+                    "postings": current_postings,
+                    "status": "Posted",
+                    "sourceTransactionId": current_metadata.get("tx_id"),
+                }
+                if "tx_id" in current_metadata:
+                    entry_dict["tx_id"] = current_metadata["tx_id"]
+                if "confidence" in current_metadata:
+                    entry_dict["confidence"] = current_metadata["confidence"]
+                if "audit_hash" in current_metadata:
+                    entry_dict["audit_hash"] = current_metadata["audit_hash"]
+
+                raw_entries.append(entry_dict)
+
+                for p in current_postings:
+                    acct = p["account"]
+                    amt = Decimal(str(p["amount"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    curr = p["currency"]
+                    if acct not in balances:
+                        balances[acct] = {}
+                    balances[acct][curr] = balances[acct].get(curr, Decimal("0.00")) + amt
+
+        for line in lines:
+            m_header = entry_header_pattern.match(line)
+            if m_header:
+                finalize_entry()
+                payee = m_header.group(3) or ""
+                narration = m_header.group(4) or ""
+                if not m_header.group(4) and payee:
+                    # If only one string was in quotes: date * "Narration"
+                    narration = payee
+                    payee = ""
+                current_entry_header = {
+                    "date": m_header.group(1),
+                    "flag": m_header.group(2),
+                    "payee": payee,
+                    "narration": narration,
+                }
+                current_postings = []
+                current_metadata = {}
+                continue
+
+            if current_entry_header is not None:
+                m_meta = metadata_pattern.match(line)
+                if m_meta:
+                    key = m_meta.group(1)
+                    str_val = m_meta.group(2)
+                    num_val = m_meta.group(3)
+                    if str_val is not None:
+                        current_metadata[key] = str_val
+                    elif num_val is not None:
+                        try:
+                            current_metadata[key] = float(num_val)
+                        except ValueError:
+                            current_metadata[key] = num_val
+                    continue
+
+                m_post = posting_pattern.match(line)
+                if m_post:
+                    acct = m_post.group(1)
+                    amt_str = m_post.group(2).replace(",", "")
+                    curr = m_post.group(3)
+                    try:
+                        amt = float(amt_str)
+                    except ValueError:
+                        amt = 0.0
+                    current_postings.append({
+                        "account": acct,
+                        "amount": amt,
+                        "currency": curr,
+                    })
+                    continue
+
+                if line and not line.startswith(" ") and not line.startswith("\t"):
+                    finalize_entry()
+                    current_entry_header = None
+                    current_postings = []
+                    current_metadata = {}
+
+        finalize_entry()
+
+        balances_float: Dict[str, Dict[str, float]] = {}
+        for account, currencies in balances.items():
+            balances_float[account] = {curr: float(bal) for curr, bal in currencies.items()}
+
+        return {
+            "entries": raw_entries,
+            "balances": balances_float,
+        }
+
+    @classmethod
     def run_bean_check(cls, ledger_path: Union[str, Path]) -> Dict[str, Any]:
         """
         Runs native bean-check CLI syntax and balance validation on a .beancount file.

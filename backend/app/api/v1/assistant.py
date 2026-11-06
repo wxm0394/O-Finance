@@ -1,14 +1,18 @@
 """
 O-Finance Assistant API Endpoints (/api/v1/assistant)
-Provides assistant runtime status, unified model configuration, and task execution.
+Provides assistant runtime status, unified model configuration, task execution,
+daily token/USD spend usage, and available tool metadata.
 """
 
 from fastapi import APIRouter, status
+from app.core.config import settings
 from app.schemas.assistant import (
     AssistantStatusDto,
     UnifiedModelConfigDto,
     AssistantRunRequestDto,
     AssistantRunResponseDto,
+    AssistantUsageDto,
+    AssistantToolsDto,
 )
 from app.services.assistant_service import AssistantService
 
@@ -44,3 +48,55 @@ async def get_assistant_config() -> UnifiedModelConfigDto:
 )
 async def run_assistant_task(payload: AssistantRunRequestDto) -> AssistantRunResponseDto:
     return await AssistantService.run_task(payload)
+
+
+@router.get(
+    "/usage",
+    response_model=AssistantUsageDto,
+    summary="Get Daily Assistant Token/USD Usage",
+    description="Returns accumulated token count and USD spend for the current day against the $25.00 cap.",
+)
+async def get_assistant_usage() -> AssistantUsageDto:
+    spend_usd = AssistantService._get_daily_spend_usd()
+    tokens_used = AssistantService._get_daily_tokens()
+    daily_budget = float(settings.assistant_daily_budget_usd)
+    return AssistantUsageDto(
+        daily_budget_usd=daily_budget,
+        spend_usd_today=spend_usd,
+        tokens_used_today=tokens_used,
+        budget_remaining_usd=max(0.0, daily_budget - spend_usd),
+    )
+
+
+@router.get(
+    "/tools",
+    response_model=AssistantToolsDto,
+    summary="Get Available Assistant Tools",
+    description="Returns metadata about the read-only tools available to the assistant runtime (read_accounts, read_holdings, verify_double_entry_balance, calculate_risk_metrics).",
+)
+async def get_assistant_tools() -> AssistantToolsDto:
+    return AssistantToolsDto(
+        available_tools=[
+            {
+                "name": "read_accounts",
+                "description": "Read account balances from the Beancount ledger file.",
+                "source": "beancount_file",
+            },
+            {
+                "name": "read_holdings",
+                "description": "Read asset holdings from the Beancount ledger file.",
+                "source": "beancount_file",
+            },
+            {
+                "name": "verify_double_entry_balance",
+                "description": "Verify double-entry balance conservation across all accounts.",
+                "source": "beancount_file",
+            },
+            {
+                "name": "calculate_risk_metrics",
+                "description": "Calculate portfolio risk metrics (VaR, Sharpe, max drawdown, beta).",
+                "source": "domain_quant_engine",
+            },
+        ],
+        total_tools=4,
+    )

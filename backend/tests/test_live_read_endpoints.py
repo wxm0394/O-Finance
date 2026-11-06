@@ -79,3 +79,20 @@ async def test_post_sync_trigger(async_client: AsyncClient):
     data = res.json()
     assert data["target"] == "Chase"
     assert "Simulated Sync Completed" in data["status"]
+
+
+@pytest.mark.asyncio
+async def test_get_assistant_usage_and_tools_endpoints(async_client: AsyncClient):
+    res_usage = await async_client.get("/api/v1/assistant/usage")
+    assert res_usage.status_code == 200
+    data_usage = res_usage.json()
+    assert "daily_budget_usd" in data_usage
+    assert "spend_usd_today" in data_usage
+    assert data_usage["daily_budget_usd"] == 25.0
+
+    res_tools = await async_client.get("/api/v1/assistant/tools")
+    assert res_tools.status_code == 200
+    data_tools = res_tools.json()
+    assert "available_tools" in data_tools
+    assert data_tools["total_tools"] == len(data_tools["available_tools"])
+    assert data_tools["total_tools"] >= 4

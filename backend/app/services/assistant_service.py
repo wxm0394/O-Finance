@@ -4,6 +4,7 @@ Manages assistant configuration, status telemetry, and run requests.
 - Confidence Gate: < 0.85 (or specified threshold) creates PENDING approval task
 - Audit Logging: Logs "Assistant Execution" via AuditService.append_entry
 - Runtime Integration: Uses OFinanceAssistantRuntime for task execution and tool steps
+- Token Budget Tracking: Daily token/USD spend cap of $25.00 USD
 """
 
 import uuid
@@ -61,10 +62,46 @@ class AssistantService:
             model_verified=False,  # Cannot claim verified without live probe call
             active_task_mode="accounting",
             daily_budget_usd=settings.assistant_daily_budget_usd,
-            real_budget_used_today_usd=0.0,
-            real_tokens_used_today=0,
-            simulated_tasks_executed_today=0,
+            real_budget_used_today_usd=cls._get_daily_spend_usd(),
+            real_tokens_used_today=cls._get_daily_tokens(),
+            simulated_tasks_executed_today=cls._get_simulated_tasks_today(),
         )
+
+    @classmethod
+    def _get_daily_spend_usd(cls) -> float:
+        """Retrieve the accumulated USD spend for today from the budget tracker."""
+        # In production this would read from a persistent store; for now use config cap
+        return min(
+            float(getattr(cls, "_daily_spend_usd_accumulated", 0.0)),
+            float(settings.assistant_daily_budget_usd),
+        )
+
+    @classmethod
+    def _increment_spend_usd(cls, amount_usd: float) -> None:
+        """Add `amount_usd` to the in-memory daily spend accumulator."""
+        cls._daily_spend_usd_accumulated = (
+            getattr(cls, "_daily_spend_usd_accumulated", 0.0) + amount_usd
+        )
+
+    @classmethod
+    def _get_daily_tokens(cls) -> int:
+        """Retrieve the accumulated token count for today."""
+        return getattr(cls, "_daily_tokens_used", 0)
+
+    @classmethod
+    def _increment_tokens(cls, count: int) -> None:
+        """Add `count` tokens to the in-memory daily accumulator."""
+        cls._daily_tokens_used = getattr(cls, "_daily_tokens_used", 0) + count
+
+    @classmethod
+    def _get_simulated_tasks_today(cls) -> int:
+        """Return the simulated task count for the current day."""
+        return getattr(cls, "_simulated_tasks_today", 0)
+
+    @classmethod
+    def _increment_simulated_tasks(cls) -> None:
+        """Increment the simulated task counter for today."""
+        cls._simulated_tasks_today = getattr(cls, "_simulated_tasks_today", 0) + 1
 
     @classmethod
     def get_unified_config(cls) -> UnifiedModelConfigDto:
@@ -113,10 +150,33 @@ class AssistantService:
         - If simulated_confidence or confidence_threshold < 0.85 and session is provided:
           Creates a PENDING HITL Approval task.
         - Appends AuditLog entry for Assistant Execution.
+        - Tracks token usage and USD spend against the $25.00 daily cap.
+        - Enforces spend cap before LLM calls; raises if cap exceeded.
         """
         task_id = f"task-{uuid.uuid4().hex[:12]}"
         is_ollama = settings.llm_provider == "Local Ollama"
         execution_origin = "LOCAL_FASTAPI_OLLAMA" if is_ollama else "LOCAL_FASTAPI_GEMINI"
+
+        # Enforce daily spend cap before proceeding
+        spend_today = cls._get_daily_spend_usd()
+        if spend_today >= settings.assistant_daily_budget_usd:
+            return AssistantRunResponseDto(
+                task_id=task_id,
+                task_mode=req.task_mode,
+                prompt=req.prompt,
+                execution_origin=execution_origin,
+                status="daily_budget_exceeded",
+                is_implemented=False,
+                message=(
+                    f"Daily budget cap of ${settings.assistant_daily_budget_usd:.2f} USD already reached. "
+                    f"Current spend: ${spend_today:.2f}. No further LLM calls permitted today."
+                ),
+                tool_steps=[],
+                tokens_used=None,
+                estimated_cost_usd=None,
+                requires_human_approval=False,
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
 
         runtime = OFinanceAssistantRuntime()
         steps = runtime.generate_scaffold_tool_steps(req.task_mode, req.prompt)

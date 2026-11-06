@@ -6,6 +6,7 @@ Covers:
 3. Audit logging integration during assistant execution.
 4. Beancount Bridge bean-check execution & fallback validation.
 5. Fava dashboard endpoint probe interface.
+6. Real data bindings in invoke_tool and LLM inference with scaffold fallback.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -47,6 +48,45 @@ def test_runtime_invoke_tool_permissions():
     # Blocked tool: unknown / non-whitelisted tool
     res_unknown = runtime.invoke_tool("research", "unauthorized_admin_tool")
     assert res_unknown.success is False
+
+
+def test_runtime_invoke_tool_real_data_bindings():
+    """Verify that invoke_tool binds real Beancount data for read-only tools."""
+    runtime = OFinanceAssistantRuntime()
+
+    # read_accounts should return real parsed data from ledger
+    res_accounts = runtime.invoke_tool("accounting", "read_accounts")
+    assert res_accounts.success is True
+    assert "balances" in res_accounts.output
+    assert isinstance(res_accounts.output["balances"], dict)
+
+    # read_holdings should return asset balances
+    res_holdings = runtime.invoke_tool("accounting", "read_holdings")
+    assert res_holdings.success is True
+    assert "asset_balances" in res_holdings.output
+
+    # verify_double_entry_balance should return balance check result
+    res_balance = runtime.invoke_tool("audit", "verify_double_entry_balance")
+    assert res_balance.success is True
+    assert "is_balanced" in res_balance.output
+
+    # calculate_risk_metrics should return domain metrics
+    res_risk = runtime.invoke_tool("risk_analysis", "calculate_risk_metrics")
+    assert res_risk.success is True
+    assert "var_95" in res_risk.output
+
+
+@pytest.mark.asyncio
+async def test_runtime_llm_inference_with_fallback():
+    """Verify execute_llm_inference attempts real LLM call and falls back to scaffold."""
+    runtime = OFinanceAssistantRuntime()
+
+    # Test with unconfigured provider - should fall back to scaffold
+    resp = await runtime.execute_llm_inference("accounting", "test prompt")
+    assert resp["success"] is True
+    assert "provider" in resp
+    # Should use scaffold when no credentials
+    assert resp["provider"] in ("Scaffold (Gemini)", "Scaffold (Local Ollama)")
 
 
 @pytest.mark.asyncio
@@ -141,3 +181,29 @@ def test_beancount_bridge_probe_fava_endpoint():
         res = BeancountBridge.probe_fava_endpoint("127.0.0.1", 5000, timeout=1.0)
         assert res["reachable"] is True
         assert res["status_code"] == 200
+
+
+@pytest.mark.asyncio
+async def test_assistant_usage_endpoint(async_client: AsyncClient):
+    """Test the /api/v1/assistant/usage endpoint returns correct structure."""
+    res = await async_client.get("/api/v1/assistant/usage")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["daily_budget_usd"] == 25.0
+    assert data["spend_usd_today"] >= 0.0
+    assert data["tokens_used_today"] >= 0
+    assert data["budget_remaining_usd"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_assistant_tools_endpoint(async_client: AsyncClient):
+    """Test the /api/v1/assistant/tools endpoint returns correct structure."""
+    res = await async_client.get("/api/v1/assistant/tools")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total_tools"] >= 4
+    tool_names = [t["name"] for t in data["available_tools"]]
+    assert "read_accounts" in tool_names
+    assert "read_holdings" in tool_names
+    assert "verify_double_entry_balance" in tool_names
+    assert "calculate_risk_metrics" in tool_names

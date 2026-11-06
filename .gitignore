@@ -48,3 +48,8 @@ htmlcov/
 # SQLite & local DB files
 *.sqlite3
 *.db
+
+# Temporary AI Studio & Media Snapshots
+.tempmediaStorage/
+public/assets/aistudio/
+*.beancount.lock

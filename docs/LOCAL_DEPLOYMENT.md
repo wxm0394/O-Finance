@@ -2,11 +2,12 @@
 
 > **IMPLEMENTATION STATUS (v0.4.0 · Phase 2.1 Backend Foundation Complete)**:
 > - **Frontend Workstation (`src/`)**: React 19 + TypeScript + Vite, bilingual (EN/中文), supporting 4 base currencies (`USD`, `GBP`, `EUR`, `CNY`), and Dual-Mode API client (`src/services/index.ts`).
+> - **Native Desktop Shell (`desktop/`)**: Electron desktop shell (`desktop/main.cjs` & `desktop/preload.cjs`) with auto-backend daemon lifecycle management, context isolation, and 10 Security Constitution Invariants.
 > - **Local Python Backend (`backend/` · Present in Repo)**: Python 3.12+ FastAPI application, Pydantic v2 snake_case DTOs, SQLAlchemy 2.x Async Engine + psycopg 3, Alembic migrations, and Default-Deny security guards.
 > - **Target Local Stores**:
 >   - PostgreSQL: Transactional records, accounts, approval tasks, and append-only SHA-256 audit logs.
->   - Beancount (`ledger/`): Authoritative plain-text double-entry ledger (Phase 2.2 integration).
->   - DuckDB + Parquet (`data/`): Analytical & quantitative research dataset (Phase 2.2 integration).
+>   - Beancount (`ledger/`): Authoritative plain-text double-entry ledger.
+>   - DuckDB + Parquet (`data/`): Analytical & quantitative research dataset.
 
 ---
 
@@ -15,6 +16,9 @@
 ```text
 o-finance/
 ├── src/                       # React 19 + TypeScript + Vite workstation UI (v0.4.0)
+├── desktop/                   # Electron desktop workstation shell & preload context bridge
+│   ├── main.cjs               # Main process, window setup, FastAPI auto-daemon lifecycle
+│   └── preload.cjs            # Read-only desktop metadata contextBridge
 ├── backend/                   # Python 3.12 + FastAPI + SQLAlchemy 2.x + Pydantic v2
 │   ├── app/
 │   │   ├── main.py            # FastAPI entry point, CORS, /healthz
@@ -96,4 +100,18 @@ The frontend service layer (`src/services/index.ts`) supports two execution mode
 ```bash
 # Start Frontend connected to Local Backend
 VITE_DEMO_MODE=false VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
+
+---
+
+## 4. Desktop Workstation Shell Execution (`desktop/`)
+
+The native Electron desktop workstation shell provides automated local FastAPI backend lifecycle management and strict security sandboxing:
+
+```bash
+# Start Desktop Workstation in Development Mode (Live FastAPI Connection)
+npm run desktop:dev
+
+# Start Desktop Workstation Standalone
+npm run desktop:start
 ```

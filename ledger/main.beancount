@@ -1,0 +1,22 @@
+option "title" "O-Finance Canonical Operating Ledger"
+option "operating_currency" "USD"
+option "operating_currency" "GBP"
+option "operating_currency" "EUR"
+option "operating_currency" "CNY"
+
+2026-01-01 open Assets:Banks:Checking:USBank USD
+2026-01-01 open Assets:Banks:Checking:BOC CNY
+2026-01-01 open Assets:Brokerage:IBKR USD
+2026-01-01 open Liabilities:CreditCard USD
+2026-01-01 open Equity:Opening-Balances USD, CNY, EUR, GBP
+2026-01-01 open Income:Salary USD, CNY
+2026-01-01 open Income:Dividends USD
+2026-01-01 open Expenses:CloudInfrastructure USD
+2026-01-01 open Expenses:Healthcare:Diagnostics USD, CNY
+
+2026-01-01 * "Opening Balance" "Initialize canonical account balances"
+	Assets:Banks:Checking:USBank 10000.00 USD
+	Assets:Banks:Checking:BOC 50000.00 CNY
+	Assets:Brokerage:IBKR 25000.00 USD
+	Equity:Opening-Balances -35000.00 USD
+	Equity:Opening-Balances -50000.00 CNY

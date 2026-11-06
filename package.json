@@ -3,13 +3,16 @@
   "private": true,
   "version": "0.4.0",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/finance.test.ts src/services/demoAdapter.test.ts src/utils/i18nAndTrialBalance.test.ts"
+    "test": "tsx --test src/utils/finance.test.ts src/services/demoAdapter.test.ts src/utils/i18nAndTrialBalance.test.ts",
+    "desktop:dev": "VITE_DEMO_MODE=false electron .",
+    "desktop:start": "VITE_DEMO_MODE=false electron ."
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -31,6 +34,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "electron": "^33.0.0",
     "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",

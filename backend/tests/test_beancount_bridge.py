@@ -8,6 +8,7 @@ Covers:
 5. Invariant #7 audit_hash metadata injection.
 6. OS-level concurrent atomic file append.
 7. Database transaction rollback on write or validation failure.
+8. Canonical ledger file validation.
 """
 
 from decimal import Decimal
@@ -247,3 +248,14 @@ async def test_execute_approved_journal_entry_rollback_on_write_failure(tmp_path
         # Assert rollback was executed
         assert mock_session.rollback.called is True
         assert mock_session.commit.called is False
+
+
+@pytest.mark.asyncio
+async def test_canonical_main_beancount_validity():
+    """Verify ledger/main.beancount exists and passes run_bean_check cleanly."""
+    ledger_path = Path(__file__).parent.parent.parent / "ledger" / "main.beancount"
+    assert ledger_path.exists(), f"Canonical ledger file does not exist at {ledger_path}"
+
+    res = BeancountBridge.run_bean_check(ledger_path)
+    assert res["valid"] is True, f"run_bean_check failed with errors: {res.get('errors')}"
+    assert res["exit_code"] == 0, f"Expected exit code 0, got {res.get('exit_code')}"

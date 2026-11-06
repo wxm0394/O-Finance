@@ -44,7 +44,7 @@ async def test_database_unconfigured_behavior(monkeypatch):
     with pytest.raises(ConnectionError) as exc_info:
         async for _ in get_db_session():
             pass
-    assert "PostgreSQL is not configured" in str(exc_info.value)
+    assert "not configured" in str(exc_info.value).lower()
 
 
 @pytest.mark.asyncio

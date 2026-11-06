@@ -289,12 +289,15 @@ async def test_canonical_main_beancount_validity():
 
 
 @pytest.mark.asyncio
-async def test_csv_import_routing_high_vs_low_confidence(async_client, setup_test_db):
+async def test_csv_import_routing_high_vs_low_confidence(async_client, setup_test_db, tmp_path, monkeypatch):
     """
     Verify POST /api/v1/ledger/import-csv routing:
     - High confidence (>=0.85) is posted directly to ledger.
     - Low confidence (<0.85) is queued to Approval Inbox.
     """
+    test_ledger = tmp_path / "test_main.beancount"
+    test_ledger.write_text("; Test ledger\n", encoding="utf-8")
+    monkeypatch.setattr("app.core.config.settings.beancount_file_path", str(test_ledger))
     payload = {
         "rows": [
             {

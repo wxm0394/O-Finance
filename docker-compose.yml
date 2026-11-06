@@ -20,5 +20,22 @@ services:
       retries: 5
       start_period: 10s
 
+  ofinance-core:
+    build: .
+    container_name: ofinance-core
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      USE_SQLITE_FALLBACK: "false"
+      DATABASE_URL: "postgresql://ofinance_admin:change_me_local_password@postgres:5432/ofinance_core"
+      VITE_API_BASE_URL: "http://localhost:8000"
+      VITE_DEMO_MODE: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ledger:/app/ledger
+
 volumes:
   postgres_data:

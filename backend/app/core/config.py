@@ -44,6 +44,16 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
 
+    # Dual-Engine Database Fallback Configuration
+    use_sqlite_fallback: bool = Field(
+        default=False,
+        alias="USE_SQLITE_FALLBACK",
+    )
+    sqlite_db_path: str = Field(
+        default="./data/ofinance.db",
+        alias="SQLITE_DB_PATH",
+    )
+
     # AI Model Provider Configuration
     # Phase 1: Gemini is sole cloud model; Local Ollama is optional local mode
     llm_provider: Literal["Gemini", "Local Ollama"] = Field(
@@ -79,7 +89,7 @@ class Settings(BaseSettings):
 
     # External Paths & Connectors
     beancount_file_path: str = Field(
-        default="~/o-finance/ledger/main.beancount",
+        default="ledger/main.beancount",
         alias="BEANCOUNT_FILE_PATH",
     )
     fava_server_url: str = Field(
@@ -101,7 +111,7 @@ class Settings(BaseSettings):
         Returns True ONLY if GEMINI_API_KEY is non-empty.
         Does NOT imply model verification.
         """
-        return bool(self.gemini_api_key and len(self.gemini_api_key.strip()) > 5)
+        return bool(self.gemini_api_key and len(self.gemini_api_key.strip()) > 0)
 
     @property
     def is_database_configured(self) -> bool:
@@ -109,6 +119,20 @@ class Settings(BaseSettings):
         Returns True ONLY if DATABASE_URL is non-empty.
         """
         return bool(self.database_url and len(self.database_url.strip()) > 0)
+
+    @property
+    def effective_database_url(self) -> str:
+        """
+        Returns the effective database URL based on configuration.
+        If USE_SQLITE_FALLBACK is True and DATABASE_URL is not configured,
+        returns the SQLite database URL (sqlite+aiosqlite:///...). Otherwise returns DATABASE_URL.
+        """
+        if self.use_sqlite_fallback and (not self.database_url or not self.database_url.strip()):
+            path = self.sqlite_db_path
+            if not path.startswith("sqlite"):
+                return f"sqlite+aiosqlite:///{path}"
+            return path
+        return self.database_url or ""
 
 
 # Global cached settings instance

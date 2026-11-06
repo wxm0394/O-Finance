@@ -40,7 +40,21 @@ const env: Record<string, string | undefined> =
     ? process.env
     : {};
 
-const isDemo = env.VITE_DEMO_MODE !== 'false';
+export function getRuntimeModeFromStorage(): BackendRuntimeMode {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const stored = window.localStorage.getItem('ofinance_runtime_mode');
+    if (stored === 'demo') return 'DEMO';
+    if (stored === 'live') return 'LOCAL_FASTAPI';
+  }
+  const isDemo = env.VITE_DEMO_MODE !== 'false';
+  return isDemo ? 'DEMO' : 'LOCAL_FASTAPI';
+}
+
+export function setRuntimeModeInStorage(mode: 'demo' | 'live'): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem('ofinance_runtime_mode', mode);
+  }
+}
 
 /**
  * Normalizes the API Base URL so that both `http://127.0.0.1:8000` and `http://127.0.0.1:8000/api/v1`
@@ -57,8 +71,12 @@ export function resolveEndpointUrl(baseUrl: string, endpoint: string): string {
 }
 
 export const apiClientConfig: ApiClientConfig = {
-  demoMode: isDemo,
-  runtimeMode: isDemo ? 'DEMO' : 'LOCAL_FASTAPI',
+  get demoMode() {
+    return getRuntimeModeFromStorage() === 'DEMO';
+  },
+  get runtimeMode() {
+    return getRuntimeModeFromStorage();
+  },
   baseUrl: (env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, ''),
   clientVersion: 'Desktop-Web-v0.4.0',
 };

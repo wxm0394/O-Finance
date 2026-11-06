@@ -49,7 +49,7 @@ import {
   AggregatedWealthSummary,
   runDeterministicBacktest,
 } from '../../utils/finance';
-import { AssistantService } from '../../services';
+import { AssistantService, ApprovalService } from '../../services';
 import { ApiClient } from '../../services/api/client';
 
 export interface SyncHistoryItem {
@@ -616,6 +616,12 @@ export const OFinanceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           : t
       )
     );
+
+    if (decision === 'Approved') {
+      ApprovalService.approveTask(taskId, { editedPayload }).catch(() => {});
+    } else {
+      ApprovalService.rejectTask(taskId, { editedPayload }).catch(() => {});
+    }
 
     if (taskId === 'APR-2026-001') {
       setTransactions((prev) =>

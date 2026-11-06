@@ -34,3 +34,11 @@
 - Exposed `/api/v1/quant/strategies` and `/api/v1/quant/backtest` with friction cost deduction and audit logging.
 - Implemented external research connector in `backend/app/connectors/daily_analysis_connector.py` with loopback validation and graceful fallback.
 - Exposed `/api/v1/market-intelligence/connector-status` and `/api/v1/market-intelligence/reports` with security boundary enforcement.
+
+## Phase 3: Cross-Platform Desktop Shell, Portable Snapshot & Full-Stack Containerization (Completed)
+- **Linux Desktop Workstation Shell**: Created Electron main process (`desktop/main.cjs`), preload script (`desktop/preload.cjs`), Fava daemon supervisor, and Linux `.desktop` application launcher installer (`scripts/install-desktop-entry.sh`).
+- **SQLite Dual-Engine Fallback**: Implemented automatic SQLite database fallback (`use_sqlite_fallback`) in `backend/app/core/database.py` with dynamic schema initialization (`init_db_schema()`).
+- **Portable Snapshot System**: Implemented `/api/v1/system/export-snapshot`, `/api/v1/system/verify-snapshot`, and `/api/v1/system/restore-snapshot` with Fail-Closed cryptographic integrity validation and OS atomic file swapping.
+- **Frontend Runtime Mode Switcher**: Added dynamic hot-switching between `DEMO` and `LOCAL_FASTAPI` backend runtime modes with persistent storage.
+- **Full-Stack Containerization**: Created root multi-stage `Dockerfile` (Vite production build + Python FastAPI backend) and production `docker-compose.yml` with PostgreSQL DB service.
+- **Release Hardening**: Resolved literal `~` directory creation bug, isolated test ledger paths via temporary files (`tmp_path`), and completed live mode CSV statement import and HITL approval execution loop.

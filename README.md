@@ -49,26 +49,58 @@
 
 ---
 
-## 3. Quick Start (Demo Mode, Unit Tests & CI)
+## 3. Operational Deployment Modes
+
+O-Finance supports 3 deployment modes depending on your infrastructure requirements:
+
+### (a) Zero-Dependency Portable Mode (SQLite + FastAPI)
+Zero cloud or PostgreSQL database setup required. Runs locally with an embedded SQLite database (`USE_SQLITE_FALLBACK=true`):
+```bash
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+USE_SQLITE_FALLBACK=true uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+Supports complete cross-device migration via Fail-Closed portable snapshot APIs (`GET /api/v1/system/export-snapshot`, `POST /api/v1/system/restore-snapshot`).
+
+### (b) Linux Desktop Workstation Mode (Electron + FastAPI + Fava)
+Native desktop GUI packaging on Debian/Kali Linux with supervised Fava daemon:
+```bash
+# Install Linux application launcher
+./scripts/install-desktop-entry.sh
+
+# Start Desktop Workstation
+npm run desktop:start
+```
+
+### (c) Server Containerized Mode (Docker Compose: PostgreSQL + O-Finance Core)
+Production-grade multi-container deployment with PostgreSQL database service:
+```bash
+docker-compose up -d --build
+```
+Exposes full-stack web workstation on `http://localhost:3000` and FastAPI API endpoints on `http://localhost:8000`.
+
+---
+
+## 4. Quick Start (Development & Tests)
 
 ```bash
-# 1. Install frontend dependencies (Bun or npm)
-bun install
+# 1. Install frontend dependencies
+npm install
 
-# 2. Run deterministic unit tests (finance math + demo adapter)
-bun run test
+# 2. Run frontend unit tests
+npm test
 
-# 3. Start local development workstation on port 3000
-bun run dev
+# 3. Start local development server
+npm run dev
 
-# 4. Type-check and build production bundle
-bun run lint
-bun run build
+# 4. Run backend pytest suite
+cd backend && python -m pytest -v
 ```
 
 ---
 
-## 4. Architecture & Operations Documentation
+## 5. Architecture & Operations Documentation
 
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — 6-layer system architecture, data stores, and deterministic boundary.
 - [`docs/AGENT_RUNTIME.md`](./docs/AGENT_RUNTIME.md) — `OFinanceAssistant` single-assistant Pydantic AI design, Dual-Mode adapter boundary, and Phase 1 Gemini provider policy.

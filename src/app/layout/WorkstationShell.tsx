@@ -25,7 +25,7 @@ import {
 import { useOFinance } from '../providers/OFinanceContext';
 import { CurrencyCode } from '../../types';
 import { FX_LAST_UPDATED, SIMULATED_FX_RATES_TO_USD } from '../../utils/finance';
-import { ApiClient } from '../../services/api/client';
+import { ApiClient, getRuntimeModeFromStorage, setRuntimeModeInStorage } from '../../services/api/client';
 import { useI18n, LocaleSwitcher } from '../../i18n';
 
 export const WorkstationShell: React.FC = () => {
@@ -143,10 +143,24 @@ export const WorkstationShell: React.FC = () => {
             /
           </span>
 
-          <div className="hidden 2xl:flex items-center gap-1.5 text-[11px] font-mono text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+          <button
+            type="button"
+            title="Click to toggle runtime mode (DEMO vs LOCAL FASTAPI)"
+            onClick={() => {
+              const current = getRuntimeModeFromStorage();
+              const nextMode = current === 'DEMO' ? 'live' : 'demo';
+              setRuntimeModeInStorage(nextMode);
+              window.location.reload();
+            }}
+            className={`hidden sm:flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
+              getRuntimeModeFromStorage() === 'DEMO'
+                ? 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20'
+                : 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
+            }`}
+          >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            <span>{t.nav.demoBadge}</span>
-          </div>
+            <span>{getRuntimeModeFromStorage() === 'DEMO' ? t.nav.demoBadge : 'LOCAL FASTAPI (LIVE)'}</span>
+          </button>
         </div>
 
         {/* Center: Global Search (compact flexible width) */}

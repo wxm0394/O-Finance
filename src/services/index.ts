@@ -504,6 +504,28 @@ export const LedgerService = {
       lastValidated: '2026-11-02 14:16:05 UTC',
       isBalanced: true,
     })),
+  importCsvStatement: (rows: Array<Record<string, any>> | string) =>
+    ApiClient.request('/api/v1/ledger/import-csv', () => ({
+      success: true,
+      total_rows: Array.isArray(rows) ? rows.length : 1,
+      directly_posted: Array.isArray(rows) ? rows.length : 1,
+      pending_approval: 0,
+    }), {
+      method: 'POST',
+      body: typeof rows === 'string' ? rows : JSON.stringify({ rows }),
+    }),
+  postApprovedEntry: (payload: {
+    approval_task_id: string;
+    beancount_file_path?: string;
+  }) =>
+    ApiClient.request('/api/v1/ledger/post-approved', () => ({
+      success: true,
+      message: 'Approved entry appended to Beancount file',
+      task_id: payload.approval_task_id,
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export const PortfolioService = {
@@ -581,6 +603,24 @@ export const AssistantService = {
 
 export const ApprovalService = {
   getTasks: () => ApiClient.request('/api/v1/approvals', () => INITIAL_APPROVAL_TASKS),
+  approveTask: (taskId: string, payload?: Record<string, any>) =>
+    ApiClient.request(`/api/v1/approvals/${taskId}/approve`, () => ({
+      success: true,
+      task_id: taskId,
+      status: 'Approved',
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    }),
+  rejectTask: (taskId: string, payload?: Record<string, any>) =>
+    ApiClient.request(`/api/v1/approvals/${taskId}/reject`, () => ({
+      success: true,
+      task_id: taskId,
+      status: 'Rejected',
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    }),
 };
 
 export const AuditService = {

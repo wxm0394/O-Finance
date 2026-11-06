@@ -3,6 +3,7 @@ O-Finance Ledger API Endpoints (/api/v1/ledger)
 Provides Beancount ledger status and atomic posting of approved journal entries.
 """
 
+from pathlib import Path
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/ledger", tags=["Ledger"])
 async def get_ledger_status(
     session: AsyncSession = Depends(get_db_session),
 ) -> LedgerStatusDto:
-    beancount_file_path = settings.beancount_file_path
+    beancount_file_path = str(Path(settings.beancount_file_path).expanduser().resolve())
 
     # Run bean-check
     bean_check = BeancountBridge.run_bean_check(ledger_path=beancount_file_path)
@@ -76,7 +77,7 @@ async def post_approved_journal_entry(
     session: AsyncSession = Depends(get_db_session),
 ) -> PostApprovedJournalEntryResponseDto:
     # Use provided beancount_file_path or fall back to settings
-    beancount_file_path = payload.beancount_file_path or settings.beancount_file_path
+    beancount_file_path = str(Path(payload.beancount_file_path or settings.beancount_file_path).expanduser().resolve())
 
     try:
         audit_entry, formatted_entry = await BeancountBridge.execute_approved_journal_entry(
@@ -115,7 +116,7 @@ async def import_csv_statement(
     payload: CsvImportRequestDto,
     session: AsyncSession = Depends(get_db_session),
 ) -> CsvImportResponseDto:
-    beancount_file_path = settings.beancount_file_path
+    beancount_file_path = str(Path(settings.beancount_file_path).expanduser().resolve())
     posted_count = 0
     queued_count = 0
     details: List[Dict[str, Any]] = []

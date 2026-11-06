@@ -165,7 +165,7 @@ class BeancountBridgeScaffold:
         Appends an entry text atomically to a .beancount file using OS-level fcntl flock.
         Uses a companion `.beancount.lock` file in the same directory.
         """
-        target_path = Path(file_path).resolve()
+        target_path = Path(file_path).expanduser().resolve()
         target_dir = target_path.parent
         target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -301,7 +301,7 @@ class BeancountBridgeScaffold:
         Falls back to internal validation if bean-check CLI is not available.
         Returns dict with keys: valid, errors, warnings, exit_code, output.
         """
-        target_path = Path(ledger_path).resolve()
+        target_path = Path(ledger_path).expanduser().resolve()
         if not target_path.exists():
             return {
                 "valid": False,

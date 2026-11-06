@@ -55,10 +55,21 @@ class Settings(BaseSettings):
     )
 
     # AI Model Provider Configuration
-    # Phase 1: Gemini is sole cloud model; Local Ollama is optional local mode
-    llm_provider: Literal["Gemini", "Local Ollama"] = Field(
-        default="Gemini",
+    llm_provider: str = Field(
+        default="openai_compatible",
         alias="LLM_PROVIDER",
+    )
+    llm_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        alias="LLM_BASE_URL",
+    )
+    llm_api_key: Optional[str] = Field(
+        default=None,
+        alias="LLM_API_KEY",
+    )
+    llm_model: Optional[str] = Field(
+        default=None,
+        alias="LLM_MODEL",
     )
     gemini_model: str = Field(
         default="gemini-2.5-pro",
@@ -106,12 +117,41 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins_raw.split(",") if origin.strip()]
 
     @property
+    def active_api_key(self) -> str:
+        """Returns llm_api_key if set, fallback to gemini_api_key, or empty string."""
+        if self.llm_api_key and self.llm_api_key.strip():
+            return self.llm_api_key.strip()
+        if self.gemini_api_key and self.gemini_api_key.strip():
+            return self.gemini_api_key.strip()
+        return ""
+
+    @property
+    def active_model(self) -> str:
+        """Returns llm_model if set, fallback to gemini_model or ollama_model."""
+        if self.llm_model and self.llm_model.strip():
+            return self.llm_model.strip()
+        prov = (self.llm_provider or "").lower()
+        if "ollama" in prov:
+            return self.ollama_model
+        return self.gemini_model
+
+    @property
+    def active_base_url(self) -> str:
+        """Returns effective base URL depending on provider setting."""
+        prov = (self.llm_provider or "").lower()
+        if "ollama" in prov:
+            return self.ollama_base_url
+        if prov == "gemini":
+            return "https://generativelanguage.googleapis.com"
+        return self.llm_base_url or "https://api.openai.com/v1"
+
+    @property
     def is_gemini_key_configured(self) -> bool:
         """
-        Returns True ONLY if GEMINI_API_KEY is non-empty.
+        Returns True ONLY if active API key or GEMINI_API_KEY is non-empty.
         Does NOT imply model verification.
         """
-        return bool(self.gemini_api_key and len(self.gemini_api_key.strip()) > 0)
+        return bool(self.active_api_key)
 
     @property
     def is_database_configured(self) -> bool:

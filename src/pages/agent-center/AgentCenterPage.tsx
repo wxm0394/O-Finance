@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOFinance } from '../../app/providers/OFinanceContext';
 import { useI18n } from '../../i18n';
 import { AssistantTaskMode } from '../../types';
 import { GUARDRAIL_INTERCEPTION_LOGS } from '../../mocks/assistant';
 import { ApiClient } from '../../services/api/client';
+import { AssistantService } from '../../services';
 import {
   Cpu,
   Send,
@@ -80,6 +81,16 @@ export const AgentCenterPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'playground' | 'config' | 'tools' | 'logs'>('playground');
   const [logModeFilter, setLogModeFilter] = useState<'ALL' | AssistantTaskMode>('ALL');
 
+  // Third-party LLM endpoint configuration state
+  const [llmProvider, setLlmProvider] = useState('openai_compatible');
+  const [llmBaseUrl, setLlmBaseUrl] = useState('https://api.openai.com/v1');
+  const [llmModelName, setLlmModelName] = useState('gpt-4o');
+  const [llmApiKey, setLlmApiKey] = useState('');
+  const [probeResult, setProbeResult] = useState<{ reachable: boolean; message: string; latency_ms: number } | null>(null);
+  const [isProbing, setIsProbing] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [configSuccessMsg, setConfigSuccessMsg] = useState('');
+
   const currentModeProfile =
     taskModeProfiles.find((p) => p.mode === selectedTaskMode) || taskModeProfiles[0];
 
@@ -95,6 +106,51 @@ export const AgentCenterPage: React.FC = () => {
     const text = promptInput;
     setPromptInput('');
     await sendPlaygroundPrompt(text, selectedTaskMode);
+  };
+
+  const handleProbeConnection = async () => {
+    setIsProbing(true);
+    setProbeResult(null);
+    try {
+      const res = await AssistantService.probeConnection({
+        provider: llmProvider,
+        base_url: llmBaseUrl,
+        model_name: llmModelName,
+        api_key: llmApiKey || undefined,
+      });
+      setProbeResult({
+        reachable: res.reachable,
+        message: res.message,
+        latency_ms: res.latency_ms,
+      });
+    } catch (err: any) {
+      setProbeResult({
+        reachable: false,
+        message: err.message || 'Probe failed',
+        latency_ms: 0,
+      });
+    } finally {
+      setIsProbing(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true);
+    setConfigSuccessMsg('');
+    try {
+      await AssistantService.updateConfig({
+        provider: llmProvider,
+        base_url: llmBaseUrl,
+        model_name: llmModelName,
+        api_key: llmApiKey || undefined,
+      });
+      setConfigSuccessMsg('LLM Configuration updated successfully!');
+      setLlmApiKey('');
+    } catch (err: any) {
+      setConfigSuccessMsg('Failed to update LLM configuration');
+    } finally {
+      setIsSavingConfig(false);
+    }
   };
 
   const toolCategories = [
@@ -763,8 +819,124 @@ export const AgentCenterPage: React.FC = () => {
                 api_key_configured: {String(unifiedModelConfig.api_key_configured)} · api_key_status: "{unifiedModelConfig.api_key_status}"
               </div>
               <div>
-                CREDENTIAL VERIFICATION POLICY: Frontend model selection never sets `api_key_configured: true`. In Demo Mode, no backend key check occurs so the status is explicitly reported as Unverified / Simulated. When running against the local FastAPI backend on Kali Linux, `GET /api/v1/assistant/config` verifies `GEMINI_API_KEY` in the backend environment and returns the real boolean status.
+                CREDENTIAL VERIFICATION POLICY: Frontend model selection never sets `api_key_configured: true`. In Demo Mode, no backend key check occurs so the status is explicitly reported as Unverified / Simulated. When running against the local FastAPI backend, `GET /api/v1/assistant/config` verifies credentials and returns masked status.
               </div>
+            </div>
+
+            {/* Custom OpenAI-Compatible LLM Endpoint Configuration Panel */}
+            <div className="p-4 rounded border border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20 space-y-3 font-sans">
+              <div className="flex items-center justify-between border-b border-blue-200 dark:border-blue-900/50 pb-2">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
+                    Third-Party LLM Endpoint Configuration (POST /api/v1/assistant/config & /probe)
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-600/10 text-blue-600 dark:text-blue-400">
+                  OpenAI Compatible
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[11px] text-slate-500 mb-1 font-mono">
+                    Provider
+                  </label>
+                  <select
+                    value={llmProvider}
+                    onChange={(e) => setLlmProvider(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono"
+                  >
+                    <option value="openai_compatible">OpenAI Compatible (SiliconFlow, OpenRouter, DeepSeek, etc.)</option>
+                    <option value="Gemini">Gemini Cloud API</option>
+                    <option value="Local Ollama">Local Ollama</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-500 mb-1 font-mono">
+                    Model Name
+                  </label>
+                  <input
+                    type="text"
+                    value={llmModelName}
+                    onChange={(e) => setLlmModelName(e.target.value)}
+                    placeholder="e.g. gpt-4o, deepseek-ai/DeepSeek-V3"
+                    className="w-full px-2.5 py-1.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-slate-500 mb-1 font-mono">
+                    Base URL (REST Endpoint)
+                  </label>
+                  <input
+                    type="text"
+                    value={llmBaseUrl}
+                    onChange={(e) => setLlmBaseUrl(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                    className="w-full px-2.5 py-1.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-slate-500 mb-1 font-mono">
+                    API Key (Write-Only Secret)
+                  </label>
+                  <input
+                    type="password"
+                    value={llmApiKey}
+                    onChange={(e) => setLlmApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="w-full px-2.5 py-1.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleProbeConnection}
+                    disabled={isProbing}
+                    className="px-3 py-1.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-mono font-medium disabled:opacity-50"
+                  >
+                    {isProbing ? 'Probing...' : 'Test Connection (/probe)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveConfig}
+                    disabled={isSavingConfig}
+                    className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium disabled:opacity-50"
+                  >
+                    {isSavingConfig ? 'Saving...' : 'Save Configuration (/config)'}
+                  </button>
+                </div>
+
+                {configSuccessMsg && (
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+                    {configSuccessMsg}
+                  </span>
+                )}
+              </div>
+
+              {probeResult && (
+                <div
+                  className={`p-2.5 rounded text-[11px] font-mono space-y-1 ${
+                    probeResult.reachable
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">
+                      {probeResult.reachable ? 'CONNECTED' : 'UNREACHABLE'}
+                    </span>
+                    <span>Latency: {probeResult.latency_ms}ms</span>
+                  </div>
+                  <div>{probeResult.message}</div>
+                </div>
+              )}
             </div>
           </div>
         </div>

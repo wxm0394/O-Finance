@@ -9,6 +9,8 @@ from app.core.config import settings
 from app.schemas.assistant import (
     AssistantStatusDto,
     UnifiedModelConfigDto,
+    UpdateAssistantConfigRequest,
+    AssistantProbeResponseDto,
     AssistantRunRequestDto,
     AssistantRunResponseDto,
     AssistantUsageDto,
@@ -100,3 +102,29 @@ async def get_assistant_tools() -> AssistantToolsDto:
         ],
         total_tools=4,
     )
+
+
+@router.post(
+    "/config",
+    response_model=UnifiedModelConfigDto,
+    status_code=status.HTTP_200_OK,
+    summary="Update Unified Model Configuration",
+    description="Updates LLM provider, base URL, model name, and API key at runtime. Returns updated config without leaking raw secrets.",
+)
+async def update_assistant_config(
+    req: UpdateAssistantConfigRequest,
+) -> UnifiedModelConfigDto:
+    return await AssistantService.update_config(req)
+
+
+@router.post(
+    "/probe",
+    response_model=AssistantProbeResponseDto,
+    status_code=status.HTTP_200_OK,
+    summary="Probe LLM Endpoint Connectivity",
+    description="Tests reachability and measures latency against a configured or provided LLM endpoint.",
+)
+async def probe_assistant_connection(
+    req: UpdateAssistantConfigRequest,
+) -> AssistantProbeResponseDto:
+    return await AssistantService.probe_connection(req)

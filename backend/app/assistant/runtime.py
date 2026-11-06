@@ -228,19 +228,23 @@ class OFinanceAssistantRuntime:
         self, task_mode: AssistantTaskMode, prompt: str
     ) -> Dict[str, Any]:
         """
-        Attempts real LLM REST call via httpx (Gemini or Ollama).
+        Attempts real LLM REST call via httpx (OpenAI-compatible, Gemini, or Ollama).
         Falls back seamlessly to scaffold result if unconfigured or network failure.
         """
         profile = self.get_mode_profile(task_mode)
-        is_ollama = settings.llm_provider == "Local Ollama"
-        
-        if is_ollama and settings.ollama_base_url:
+        prov = (settings.llm_provider or "").lower()
+        active_key = settings.active_api_key
+        active_model = settings.active_model
+        active_url = settings.active_base_url
+
+        # 1. Local Ollama Provider
+        if "ollama" in prov and active_url:
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.post(
-                        f"{settings.ollama_base_url.rstrip('/')}/api/generate",
+                        f"{active_url.rstrip('/')}/api/generate",
                         json={
-                            "model": settings.ollama_model,
+                            "model": active_model,
                             "prompt": f"{profile.system_prompt}\nUser: {prompt}",
                             "stream": False,
                         },
@@ -254,16 +258,60 @@ class OFinanceAssistantRuntime:
                             "response": text,
                             "tokens_used": tokens,
                             "estimated_cost_usd": 0.0,
-                            "provider": "Local Ollama",
+                            "provider": settings.llm_provider,
                         }
             except Exception:
                 pass
 
-        elif settings.is_gemini_key_configured:
+        # 2. OpenAI Compatible Provider (or any endpoint with an API key)
+        if (prov in ("openai_compatible", "openai", "custom") or (active_key and "gemini" not in prov)) and active_key:
+            try:
+                base = active_url.rstrip('/')
+                endpoint = base if base.endswith('/chat/completions') else f"{base}/chat/completions"
+                
+                # Ledger summary context injection
+                ledger_parsed = BeancountBridge.parse_ledger_entries_and_balances(settings.beancount_file_path)
+                ledger_summary = f"Balances summary: {ledger_parsed.get('balances', {})}"
+
+                sys_prompt = f"{profile.system_prompt}\n\n[Live Ledger Context]: {ledger_summary}"
+                headers = {
+                    "Authorization": f"Bearer {active_key}",
+                    "Content-Type": "application/json",
+                }
+                body = {
+                    "model": active_model,
+                    "temperature": 0.2,
+                    "messages": [
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                }
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post(endpoint, headers=headers, json=body)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        choices = data.get("choices", [])
+                        if choices:
+                            text = choices[0].get("message", {}).get("content", "")
+                            usage = data.get("usage", {})
+                            tokens = usage.get("total_tokens", len(text.split()))
+                            cost = (tokens / 1000.0) * 0.002
+                            return {
+                                "success": True,
+                                "response": text,
+                                "tokens_used": tokens,
+                                "estimated_cost_usd": cost,
+                                "provider": settings.llm_provider,
+                            }
+            except Exception:
+                pass
+
+        # 3. Gemini Direct Provider
+        if "gemini" in prov and active_key:
             try:
                 url = (
                     f"https://generativelanguage.googleapis.com/v1beta/models/"
-                    f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
+                    f"{active_model}:generateContent?key={active_key}"
                 )
                 payload = {
                     "contents": [

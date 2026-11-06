@@ -86,7 +86,11 @@ async def test_runtime_llm_inference_with_fallback():
     assert resp["success"] is True
     assert "provider" in resp
     # Should use scaffold when no credentials
-    assert resp["provider"] in ("Scaffold (Gemini)", "Scaffold (Local Ollama)")
+    assert resp["provider"] in (
+        "Scaffold (Gemini)",
+        "Scaffold (Local Ollama)",
+        "Scaffold (openai_compatible)",
+    )
 
 
 @pytest.mark.asyncio
@@ -207,3 +211,38 @@ async def test_assistant_tools_endpoint(async_client: AsyncClient):
     assert "read_holdings" in tool_names
     assert "verify_double_entry_balance" in tool_names
     assert "calculate_risk_metrics" in tool_names
+
+
+@pytest.mark.asyncio
+async def test_assistant_config_and_probe_integration(async_client: AsyncClient):
+    """Integration test verifying third-party config update and connection probe flow."""
+    config_res = await async_client.post(
+        "/api/v1/assistant/config",
+        json={
+            "provider": "openai_compatible",
+            "base_url": "https://api.openrouter.ai/v1",
+            "model_name": "anthropic/claude-3.5-sonnet",
+            "api_key": "sk-or-v1-testkey1234",
+        },
+    )
+    assert config_res.status_code == 200
+    config_data = config_res.json()
+    assert config_data["provider"] == "openai_compatible"
+    assert config_data["base_url"] == "https://api.openrouter.ai/v1"
+    assert config_data["model"] == "anthropic/claude-3.5-sonnet"
+    assert config_data["api_key_masked"] == "sk-...1234"
+
+    probe_res = await async_client.post(
+        "/api/v1/assistant/probe",
+        json={
+            "provider": "openai_compatible",
+            "base_url": "https://api.openrouter.ai/v1",
+            "model_name": "anthropic/claude-3.5-sonnet",
+            "api_key": "sk-or-v1-testkey1234",
+        },
+    )
+    assert probe_res.status_code == 200
+    probe_data = probe_res.json()
+    assert probe_data["provider"] == "openai_compatible"
+    assert probe_data["base_url"] == "https://api.openrouter.ai/v1"
+    assert probe_data["model"] == "anthropic/claude-3.5-sonnet"

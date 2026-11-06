@@ -63,7 +63,27 @@ class UnifiedModelConfigDto(BaseModel):
     model_verified: bool
     daily_budget_usd: float
     max_steps_per_run: int
-    # CRITICAL: Under no circumstances should GEMINI_API_KEY be present here.
+    llm_provider: Optional[str] = None
+    llm_base_url: Optional[str] = None
+    llm_model: Optional[str] = None
+    api_key_masked: Optional[str] = None
+    # CRITICAL: Under no circumstances should raw GEMINI_API_KEY / LLM_API_KEY be present here.
+
+
+class UpdateAssistantConfigRequest(BaseModel):
+    provider: str = Field(default="openai_compatible")
+    base_url: str = Field(default="https://api.openai.com/v1")
+    model_name: str = Field(default="gpt-4o")
+    api_key: Optional[str] = None
+
+
+class AssistantProbeResponseDto(BaseModel):
+    reachable: bool
+    latency_ms: float
+    provider: str
+    base_url: str
+    model: str
+    message: str
 
 
 class AssistantRunRequestDto(BaseModel):

@@ -574,6 +574,28 @@ export const AssistantService = {
       supportedTaskModes: TASK_MODE_PROFILES.map((p) => p.mode),
     })),
   getConfig: () => ApiClient.request('/api/v1/assistant/config', () => INITIAL_UNIFIED_MODEL_CONFIG),
+  updateConfig: (payload: { provider?: string; base_url?: string; model_name?: string; api_key?: string }) =>
+    ApiClient.request('/api/v1/assistant/config', () => ({
+      ...INITIAL_UNIFIED_MODEL_CONFIG,
+      provider: payload.provider || INITIAL_UNIFIED_MODEL_CONFIG.provider,
+      base_url: payload.base_url || INITIAL_UNIFIED_MODEL_CONFIG.base_url,
+      model: payload.model_name || INITIAL_UNIFIED_MODEL_CONFIG.model,
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  probeConnection: (payload: { provider?: string; base_url?: string; model_name?: string; api_key?: string }) =>
+    ApiClient.request('/api/v1/assistant/probe', () => ({
+      reachable: true,
+      latency_ms: 124.5,
+      provider: payload.provider || 'openai_compatible',
+      base_url: payload.base_url || 'https://api.openai.com/v1',
+      model: payload.model_name || 'gpt-4o',
+      message: 'Demo Fallback: Endpoint responsive (Simulated probe)',
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   runTask: (payload: AssistantRunRequestPayload, demoContext: AssistantDemoSnapshotContext) =>
     ApiClient.request<AssistantRunResponsePayload>(
       '/api/v1/assistant/run',

@@ -33,30 +33,26 @@ class AssistantService:
     def get_status(cls) -> AssistantStatusDto:
         """
         Returns runtime status of the single OFinanceAssistant.
-        Distinguishes Gemini Cloud API key requirements from Local Ollama mode.
+        Distinguishes Gemini, Local Ollama, and OpenAI Compatible endpoint configurations.
         model_verified is False until an actual probe API call succeeds.
         """
         is_ollama = settings.llm_provider == "Local Ollama"
+        key = settings.active_api_key
+        key_configured = bool(key) or is_ollama
 
         if is_ollama:
-            key_configured = True
             key_status = "Local Ollama Active (No API Key Required)"
-            active_model = settings.ollama_model
+        elif key_configured:
+            key_status = "Backend Key Configured (Unverified)"
         else:
-            key_configured = settings.is_gemini_key_configured
-            key_status = (
-                "Backend Key Configured (Unverified)"
-                if key_configured
-                else "Backend Key Missing"
-            )
-            active_model = settings.gemini_model
+            key_status = "Backend Key Missing"
 
         return AssistantStatusDto(
             assistant_name="OFinanceAssistant",
             runtime_mode="LOCAL_FASTAPI",
             runtime_status="FastAPI Core Online · Pydantic AI Harness Scaffold",
             provider=settings.llm_provider,
-            model=active_model,
+            model=settings.active_model,
             api_key_configured=key_configured,
             api_key_status=key_status,
             model_verified=False,  # Cannot claim verified without live probe call
@@ -104,39 +100,150 @@ class AssistantService:
         cls._simulated_tasks_today = getattr(cls, "_simulated_tasks_today", 0) + 1
 
     @classmethod
+    def _mask_api_key(cls, key: Optional[str]) -> Optional[str]:
+        """Safely mask API key for DTO responses."""
+        if not key:
+            return None
+        if len(key) <= 8:
+            return "****"
+        return f"{key[:3]}...{key[-4:]}"
+
+    @classmethod
     def get_unified_config(cls) -> UnifiedModelConfigDto:
         """
         Returns model configuration metadata.
-        Strictly excludes GEMINI_API_KEY from the payload.
-        Accurately reports base_url and credentials depending on provider.
+        Strictly excludes raw API secrets from the payload.
+        Accurately reports base_url, active_model, and masked credentials.
         """
         is_ollama = settings.llm_provider == "Local Ollama"
+        raw_key = settings.active_api_key
+        key_configured = bool(raw_key) or is_ollama
+        masked_key = cls._mask_api_key(raw_key)
 
         if is_ollama:
-            key_configured = True
             key_status = "Local Ollama Active (No API Key Required)"
-            active_model = settings.ollama_model
-            base_url = settings.ollama_base_url
+        elif key_configured:
+            key_status = "Backend Key Configured (Unverified)"
         else:
-            key_configured = settings.is_gemini_key_configured
-            key_status = (
-                "Backend Key Configured (Unverified)"
-                if key_configured
-                else "Backend Key Missing"
-            )
-            active_model = settings.gemini_model
-            base_url = "https://generativelanguage.googleapis.com"
+            key_status = "Backend Key Missing"
 
         return UnifiedModelConfigDto(
             provider=settings.llm_provider,
-            model=active_model,
-            base_url=base_url,
+            model=settings.active_model,
+            base_url=settings.active_base_url,
             api_key_configured=key_configured,
             api_key_status=key_status,
             model_verified=False,
             daily_budget_usd=settings.assistant_daily_budget_usd,
             max_steps_per_run=settings.assistant_max_steps_per_run,
+            llm_provider=settings.llm_provider,
+            llm_base_url=settings.llm_base_url,
+            llm_model=settings.active_model,
+            api_key_masked=masked_key,
         )
+
+    @classmethod
+    async def update_config(
+        cls,
+        req: "UpdateAssistantConfigRequest",
+        session: Optional[AsyncSession] = None,
+    ) -> UnifiedModelConfigDto:
+        """
+        Updates third-party model configuration at runtime.
+        If api_key is provided, updates llm_api_key.
+        Appends an audit log record when database session is provided.
+        """
+        from app.schemas.assistant import UpdateAssistantConfigRequest
+
+        if req.provider:
+            settings.llm_provider = req.provider
+        if req.base_url:
+            settings.llm_base_url = req.base_url
+        if req.model_name:
+            settings.llm_model = req.model_name
+        if req.api_key and req.api_key.strip():
+            settings.llm_api_key = req.api_key.strip()
+
+        if session:
+            await AuditService.append_entry(
+                session=session,
+                category="System Configuration",
+                actor="AdminUser",
+                action="update_assistant_llm_config",
+                target="assistant_config",
+                severity="INFO",
+                details={
+                    "provider": settings.llm_provider,
+                    "base_url": settings.llm_base_url,
+                    "model_name": settings.active_model,
+                    "key_updated": bool(req.api_key and req.api_key.strip()),
+                },
+            )
+
+        return cls.get_unified_config()
+
+    @classmethod
+    async def probe_connection(
+        cls,
+        req: Optional["UpdateAssistantConfigRequest"] = None,
+    ) -> "AssistantProbeResponseDto":
+        """
+        Probes endpoint reachability and measures network latency.
+        """
+        import time
+        import httpx
+        from app.schemas.assistant import AssistantProbeResponseDto
+
+        target_provider = req.provider if (req and req.provider) else settings.llm_provider
+        target_base_url = req.base_url if (req and req.base_url) else settings.active_base_url
+        target_model = req.model_name if (req and req.model_name) else settings.active_model
+        target_key = req.api_key if (req and req.api_key) else settings.active_api_key
+
+        clean_base = target_base_url.rstrip("/")
+        start_time = time.time()
+
+        try:
+            headers = {}
+            if target_key:
+                headers["Authorization"] = f"Bearer {target_key}"
+
+            # Attempt a light GET request to base URL or /models
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                probe_url = f"{clean_base}/models" if not clean_base.endswith("/models") else clean_base
+                res = await client.get(probe_url, headers=headers)
+                latency_ms = round((time.time() - start_time) * 1000, 2)
+
+                if res.status_code in (200, 201):
+                    msg = f"Successfully reached {clean_base} (HTTP {res.status_code})"
+                    reachable = True
+                elif res.status_code in (401, 403):
+                    msg = f"Reached endpoint {clean_base} but authentication failed (HTTP {res.status_code})"
+                    reachable = True  # Network reachable, auth error
+                elif res.status_code < 500:
+                    msg = f"Reached endpoint {clean_base} (HTTP {res.status_code})"
+                    reachable = True
+                else:
+                    msg = f"Endpoint responded with server error (HTTP {res.status_code})"
+                    reachable = False
+
+                return AssistantProbeResponseDto(
+                    reachable=reachable,
+                    latency_ms=latency_ms,
+                    provider=target_provider,
+                    base_url=clean_base,
+                    model=target_model,
+                    message=msg,
+                )
+        except Exception as err:
+            latency_ms = round((time.time() - start_time) * 1000, 2)
+            return AssistantProbeResponseDto(
+                reachable=False,
+                latency_ms=latency_ms,
+                provider=target_provider,
+                base_url=clean_base,
+                model=target_model,
+                message=f"Connection failed: {str(err)}",
+            )
 
     @classmethod
     async def run_task(

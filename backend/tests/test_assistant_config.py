@@ -49,3 +49,47 @@ async def test_assistant_config_isolates_key_when_configured(async_client: Async
     assert "base_url" in data
     assert "daily_budget_usd" in data
     assert "max_steps_per_run" in data
+
+
+@pytest.mark.asyncio
+async def test_update_assistant_config_endpoint(async_client: AsyncClient):
+    """Verify POST /api/v1/assistant/config updates settings and masks secret keys."""
+    payload = {
+        "provider": "openai_compatible",
+        "base_url": "https://api.siliconflow.cn/v1",
+        "model_name": "deepseek-ai/DeepSeek-V3",
+        "api_key": "sk-secret12345678",
+    }
+
+    response = await async_client.post("/api/v1/assistant/config", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["provider"] == "openai_compatible"
+    assert data["base_url"] == "https://api.siliconflow.cn/v1"
+    assert data["model"] == "deepseek-ai/DeepSeek-V3"
+    assert data["api_key_configured"] is True
+    assert data["api_key_masked"] == "sk-...5678"
+    assert "sk-secret12345678" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_probe_assistant_connection_endpoint(async_client: AsyncClient):
+    """Verify POST /api/v1/assistant/probe performs reachability check and returns latency."""
+    payload = {
+        "provider": "openai_compatible",
+        "base_url": "https://api.openai.com/v1",
+        "model_name": "gpt-4o",
+        "api_key": "sk-testkey",
+    }
+
+    response = await async_client.post("/api/v1/assistant/probe", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "reachable" in data
+    assert "latency_ms" in data
+    assert "provider" in data
+    assert "base_url" in data
+    assert "model" in data
+    assert "message" in data

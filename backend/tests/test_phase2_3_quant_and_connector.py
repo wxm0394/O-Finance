@@ -23,7 +23,6 @@ from app.connectors.daily_analysis_connector import (
     SecurityViolationError,
 )
 
-pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture(autouse=True)

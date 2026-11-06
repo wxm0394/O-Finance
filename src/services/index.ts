@@ -497,7 +497,7 @@ export const TransactionService = {
 export const LedgerService = {
   getJournalEntries: () => ApiClient.request('/api/v1/ledger/entries', () => INITIAL_JOURNAL_ENTRIES),
   getFavaStatus: () =>
-    ApiClient.request('/api/v1/ledger/fava-status', () => ({
+    ApiClient.request('/api/v1/ledger/status', () => ({
       serviceStatus: 'Placeholder Integration (Local Fava Not Running)',
       favaUrl: 'http://127.0.0.1:5000',
       ledgerFilePath: '~/o-finance/ledger/main.beancount (Simulated Path)',
@@ -518,13 +518,24 @@ export const MarketDataService = {
 };
 
 export const ResearchService = {
-  getReports: () => ApiClient.request('/api/v1/research/reports', () => INITIAL_RESEARCH_REPORTS),
+  getReports: () => ApiClient.request('/api/v1/market-intelligence/reports', () => INITIAL_RESEARCH_REPORTS),
   getStrategies: () => ApiClient.request('/api/v1/quant/strategies', () => INITIAL_STRATEGIES),
   getBacktests: () => ApiClient.request('/api/v1/quant/backtests', () => INITIAL_BACKTESTS),
   executeBacktest: (params: Parameters<typeof runDeterministicBacktest>[0]) =>
-    ApiClient.request('/api/v1/quant/backtest/run', () => runDeterministicBacktest(params)),
+    ApiClient.request('/api/v1/quant/backtest', () => runDeterministicBacktest(params), {
+      method: 'POST',
+      body: JSON.stringify({
+        strategy_id: params.strategyId,
+        symbols: params.symbol ? [params.symbol] : ['AAPL'],
+        start_date: params.startDate || '2025-01-01',
+        end_date: params.endDate || '2025-12-31',
+        initial_capital: params.initialCapital ?? 100000.0,
+        commission_bps: params.commissionBps ?? 5.0,
+        slippage_bps: params.slippageBps ?? 2.0,
+      }),
+    }),
   getDailyAnalysisConnectorStatus: () =>
-    ApiClient.request('/api/v1/research/connectors/daily-analysis', () => ({
+    ApiClient.request('/api/v1/market-intelligence/connector-status', () => ({
       serviceName: 'Daily Analysis Connector (daily_stock_analysis)',
       apiBaseUrl: 'http://127.0.0.1:8090/api/v1/reports',
       connectionStatus: 'Not Connected',

@@ -28,6 +28,9 @@
 - Maintain PostgreSQL as transactional, approval, and audit store; Beancount as the sole double-entry source of truth.
 - Expose ApprovalService, AuditService, and BeancountBridge via FastAPI routes under `/api/v1`.
 
-## Phase 2.3: DuckDB + Parquet Analytical Engine (Planned)
-- Implement analytical store in `data/` using DuckDB and Parquet files for high-throughput quantitative strategy backtesting and historical OHLCV research.
-- Read-only connection to independent `daily_stock_analysis` service.
+## Phase 2.3: DuckDB + Parquet Analytical Engine (Completed)
+- Implemented analytical store in `backend/app/quant/backtest_engine.py` with DuckDB + Parquet OHLCV queries and deterministic synthetic data fallback.
+- Built 5 quantitative strategies: `ma_crossover`, `cross_sectional_momentum`, `bollinger_rsi_mean_reversion`, `multi_asset_donchian`, `quality_low_vol_fcf`.
+- Exposed `/api/v1/quant/strategies` and `/api/v1/quant/backtest` with friction cost deduction and audit logging.
+- Implemented external research connector in `backend/app/connectors/daily_analysis_connector.py` with loopback validation and graceful fallback.
+- Exposed `/api/v1/market-intelligence/connector-status` and `/api/v1/market-intelligence/reports` with security boundary enforcement.

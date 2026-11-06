@@ -1,11 +1,12 @@
 const { app, BrowserWindow, shell } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const http = require('http');
 const net = require('net');
 const path = require('path');
 
 let mainWindow = null;
 let backendProcess = null;
+let favaProcess = null;
 
 /**
  * Check whether port 8000 is active/listening
@@ -99,13 +100,87 @@ async function startBackendProcess() {
 }
 
 /**
- * Terminate backend sub-process cleanly
+ * Check whether port 5000 is active/listening
+ */
+function isPort5000Listening() {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(400);
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.connect(5000, '127.0.0.1');
+  });
+}
+
+/**
+ * Check whether fava CLI executable is installed in PATH
+ */
+function isFavaInstalled() {
+  try {
+    execSync('which fava', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Spawn Fava web daemon sub-process if installed and port 5000 is available
+ */
+async function startFavaProcess() {
+  if (!isFavaInstalled()) {
+    console.log('[Desktop Main] fava CLI not found on system PATH. Skipping Fava daemon.');
+    return;
+  }
+
+  const isRunning = await isPort5000Listening();
+  if (isRunning) {
+    console.log('[Desktop Main] Fava port 5000 already active. Reusing running daemon.');
+    return;
+  }
+
+  const projectRoot = path.resolve(__dirname, '..');
+  const ledgerPath = path.join(projectRoot, 'ledger', 'main.beancount');
+
+  console.log('[Desktop Main] Launching Fava web daemon sub-process on 127.0.0.1:5000...');
+  favaProcess = spawn(
+    'fava',
+    ['-H', '127.0.0.1', '-p', '5000', ledgerPath],
+    {
+      cwd: projectRoot,
+      stdio: 'ignore',
+      detached: false,
+    }
+  );
+
+  favaProcess.on('error', (err) => {
+    console.error('[Desktop Main] Failed to spawn Fava daemon process:', err.message);
+  });
+}
+
+/**
+ * Terminate backend and Fava sub-processes cleanly
  */
 function terminateBackendProcess() {
   if (backendProcess && !backendProcess.killed) {
     console.log('[Desktop Main] Gracefully terminating backend process...');
     backendProcess.kill('SIGTERM');
     backendProcess = null;
+  }
+  if (favaProcess && !favaProcess.killed) {
+    console.log('[Desktop Main] Gracefully terminating Fava daemon process...');
+    favaProcess.kill('SIGTERM');
+    favaProcess = null;
   }
 }
 
@@ -188,6 +263,7 @@ async function loadAppContent() {
 
 app.whenReady().then(async () => {
   await startBackendProcess();
+  await startFavaProcess();
   createWindow();
 
   app.on('activate', () => {

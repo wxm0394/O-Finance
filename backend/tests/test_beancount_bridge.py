@@ -17,7 +17,11 @@ import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
+from app.main import app
+from app.core.database import Base, get_db_session
 from app.ledger.beancount_bridge import (
     BeancountBridge,
     BeancountPostingItem,
@@ -27,6 +31,29 @@ from app.models.approval import ApprovalTaskModel
 from app.models.audit import AuditLogModel
 from app.services.approval_service import ApprovalService, compute_payload_hash
 from app.services.audit_service import AuditService
+
+
+@pytest_asyncio.fixture
+async def setup_test_db():
+    """Setup in-memory SQLite database and override get_db_session dependency."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def override_get_db_session():
+        async with session_factory() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db_session] = override_get_db_session
+    yield session_factory
+    app.dependency_overrides.clear()
+    await engine.dispose()
 
 
 def test_validate_account_name():
@@ -259,3 +286,47 @@ async def test_canonical_main_beancount_validity():
     res = BeancountBridge.run_bean_check(ledger_path)
     assert res["valid"] is True, f"run_bean_check failed with errors: {res.get('errors')}"
     assert res["exit_code"] == 0, f"Expected exit code 0, got {res.get('exit_code')}"
+
+
+@pytest.mark.asyncio
+async def test_csv_import_routing_high_vs_low_confidence(async_client, setup_test_db):
+    """
+    Verify POST /api/v1/ledger/import-csv routing:
+    - High confidence (>=0.85) is posted directly to ledger.
+    - Low confidence (<0.85) is queued to Approval Inbox.
+    """
+    payload = {
+        "rows": [
+            {
+                "date": "2026-11-06",
+                "payee": "Apple Store",
+                "narration": "Hardware purchase",
+                "amount": 999.00,
+                "currency": "USD",
+                "source_account": "Assets:Bank:Checking",
+                "target_account": "Expenses:Equipment",
+                "confidence": 0.95,
+            },
+            {
+                "date": "2026-11-06",
+                "payee": "Unknown Merchant",
+                "narration": "Subscription fee",
+                "amount": 15.00,
+                "currency": "USD",
+                "source_account": "Assets:Bank:Checking",
+                "target_account": "Expenses:Subscriptions",
+                "confidence": 0.60,
+            },
+        ]
+    }
+
+    resp = await async_client.post("/api/v1/ledger/import-csv", json=payload)
+    assert resp.status_code == 200, f"Import CSV failed: {resp.text}"
+
+    data = resp.json()
+    assert data["total_rows"] == 2
+    assert data["posted_count"] == 1
+    assert data["queued_for_approval_count"] == 1
+    assert len(data["details"]) == 2
+    assert data["details"][0]["status"] == "posted"
+    assert data["details"][1]["status"] == "queued_for_approval"

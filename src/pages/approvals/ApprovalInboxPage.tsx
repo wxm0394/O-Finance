@@ -6,7 +6,7 @@ import { formatCurrency } from '../../utils/finance';
 import { CheckCircle2, XCircle, Edit3, Eye, X, ShieldAlert } from 'lucide-react';
 
 export const ApprovalInboxPage: React.FC = () => {
-  const { approvalTasks, decideApprovalTask } = useOFinance();
+  const { approvalTasks, decideApprovalTask, appendAuditLog } = useOFinance();
   const { t, l } = useI18n();
 
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Pending' | 'Approved' | 'Rejected'>('ALL');

@@ -3,7 +3,8 @@ import { useOFinance } from '../../app/providers/OFinanceContext';
 import { useI18n } from '../../i18n';
 import { ConnectorConfig } from '../../types';
 import { convertCurrency, formatCurrency } from '../../utils/finance';
-import { RefreshCw, Link2, Unlink, ShieldAlert, CheckCircle2, X, Lock, Menu, Settings, Clipboard, AlertCircle, Loader2 } from 'lucide-react';
+import { BrokerageService } from '../../services';
+import { RefreshCw, Link2, Unlink, ShieldAlert, CheckCircle2, X, Lock, Menu, Settings, Clipboard, AlertCircle, Loader2, Play } from 'lucide-react';
 
 export const AccountsPage: React.FC = () => {
   const { t, l } = useI18n();
@@ -20,6 +21,8 @@ export const AccountsPage: React.FC = () => {
     triggerSimulatedSync,
     retryFailedSync,
     toggleConnectorState,
+    approvalTasks,
+    appendAuditLog,
   } = useOFinance();
 
   const [authModalConnector, setAuthModalConnector] = useState<ConnectorConfig | null>(null);
@@ -94,7 +97,7 @@ export const AccountsPage: React.FC = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const status = await (await import('../../services')).BrokerageService.getStatus();
+        const status = await BrokerageService.getStatus();
         setBrokerageStatus({
           gateway_status: status.gateway_status || 'STOPPED',
           port: status.port || 5055,
@@ -126,9 +129,9 @@ export const AccountsPage: React.FC = () => {
   // Handle gateway control
   const handleGatewayControl = async (action: string) => {
     try {
-      await (await import('../../services')).BrokerageService.controlGateway(action);
+      await BrokerageService.controlGateway(action);
       // Refresh status after control action
-      const status = await (await import('../../services')).BrokerageService.getStatus();
+      const status = await BrokerageService.getStatus();
       setBrokerageStatus({
         gateway_status: status.gateway_status || 'STOPPED',
         port: status.port || 5055,
@@ -156,7 +159,7 @@ export const AccountsPage: React.FC = () => {
   // Handle Schwab OAuth auth URL
   const handleSchwabAuthUrl = async () => {
     try {
-      const result = await (await import('../../services')).BrokerageService.getAuthUrl();
+      const result = await BrokerageService.getAuthUrl();
       // Open auth URL in new tab
       window.open(result.auth_url || '', '_blank');
     } catch (e) {
@@ -168,7 +171,7 @@ export const AccountsPage: React.FC = () => {
   const handleStageOrder = async () => {
     setStagingError(null);
     try {
-      await (await import('../../services')).BrokerageService.stageOrder({
+      await BrokerageService.stageOrder({
         broker: stagingOrder.broker,
         account_id: stagingOrder.account_id,
         symbol: stagingOrder.symbol,
@@ -189,7 +192,7 @@ export const AccountsPage: React.FC = () => {
   // Handle executing approved order (from approval inbox)
   const handleExecuteApprovedOrder = async (payload: { approval_id: string; order_payload: Record<string, any> }) => {
     try {
-      await (await import('../../services')).BrokerageService.executeApprovedOrder(payload);
+      await BrokerageService.executeApprovedOrder(payload);
     } catch (e) {
       setStagingError('Failed to execute approved order');
     }
@@ -465,6 +468,49 @@ export const AccountsPage: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Approved Brokerage Orders Ready for Execution */}
+          {approvalTasks.filter((t) => t.status === 'Approved' && (t.id.startsWith('APR-') || t.proposedAction.toLowerCase().includes('brokerage'))).length > 0 && (
+            <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded p-4">
+              <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">
+                Approved Brokerage Orders Ready for Execution ({approvalTasks.filter((t) => t.status === 'Approved' && (t.id.startsWith('APR-') || t.proposedAction.toLowerCase().includes('brokerage'))).length})
+              </h3>
+              <div className="space-y-3">
+                {approvalTasks
+                  .filter((t) => t.status === 'Approved' && (t.id.startsWith('APR-') || t.proposedAction.toLowerCase().includes('brokerage')))
+                  .map((task) => {
+                    let orderPayload = {};
+                    try {
+                      orderPayload = JSON.parse(task.rawPayload);
+                    } catch {
+                      orderPayload = { raw: task.rawPayload };
+                    }
+                    const isExecuted = brokerageStatus.console_logs.some((l) => l.includes(task.id));
+                    return (
+                      <div key={task.id} className="p-3 rounded bg-slate-900 dark:bg-slate-800 border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div>
+                          <div className="font-mono text-xs font-bold text-blue-400">{task.id} · {task.title}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{task.proposedAction}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleExecuteApprovedOrder({ approval_id: task.id, order_payload: orderPayload })}
+                          disabled={isExecuted}
+                          className={`px-3 py-1.5 rounded text-xs font-medium inline-flex items-center gap-1.5 shrink-0 ${
+                            isExecuted
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                          }`}
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          <span>{isExecuted ? 'Executed' : 'Execute Order & Commit Ledger'}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {/* HITL Order Intent Staging Form */}
           <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded p-4">

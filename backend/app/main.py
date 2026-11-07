@@ -36,6 +36,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         settings.app_host,
         settings.app_port,
     )
+    # Initialize database engine and ensure tables exist (desktop offline-first mode)
+    engine = get_engine()
+    if engine is not None:
+        try:
+            from app.core.database import Base
+            async with engine.begin() as conn:
+                # Create all tables if they don't exist (safe idempotent operation)
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables ensured (idempotent creation).")
+        except Exception as e:
+            logger.warning(f"Database initialization warning: {e}")
     yield
     # Cleanup database engine pools
     engine = get_engine()
@@ -58,6 +69,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -66,6 +78,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Mount API v1 Routes (/api/v1/...)
 app.include_router(api_v1_router)

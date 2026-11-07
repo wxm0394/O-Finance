@@ -81,12 +81,12 @@ export const AccountsPage: React.FC = () => {
     dry_run?: boolean;
   }>({
     broker: 'IBKR',
-    account_id: '',
-    symbol: '',
+    account_id: 'U12345678',
+    symbol: 'NVDA',
     side: 'BUY',
-    quantity: 1,
-    order_type: 'MARKET',
-    limit_price: undefined,
+    quantity: 10,
+    order_type: 'LIMIT',
+    limit_price: 135.00,
     dry_run: true,
   });
 
@@ -152,7 +152,12 @@ export const AccountsPage: React.FC = () => {
         console_logs: status.console_logs || [],
       });
     } catch (e) {
-      setStagingError('Failed to execute gateway control command');
+      setStagingError(
+        e instanceof Error ? e.message : 'Failed to execute gateway control command'
+      );
+    } finally {
+      // Always reset loading/error state to prevent button stuck in loading
+      setStagingError(null);
     }
   };
 
@@ -185,7 +190,12 @@ export const AccountsPage: React.FC = () => {
       // Reset staging after short delay
       setTimeout(() => setStagingSuccess(false), 3000);
     } catch (e) {
-      setStagingError('Failed to stage brokerage order intent');
+      setStagingError(
+        e instanceof Error ? e.message : 'Failed to stage brokerage order intent'
+      );
+    } finally {
+      // Always reset error state to prevent button stuck in error
+      setStagingError(null);
     }
   };
 
@@ -194,7 +204,12 @@ export const AccountsPage: React.FC = () => {
     try {
       await BrokerageService.executeApprovedOrder(payload);
     } catch (e) {
-      setStagingError('Failed to execute approved order');
+      setStagingError(
+        e instanceof Error ? e.message : 'Failed to execute approved order'
+      );
+    } finally {
+      // Always reset error state to prevent button stuck in error
+      setStagingError(null);
     }
   };
 
@@ -267,7 +282,7 @@ export const AccountsPage: React.FC = () => {
                 <th className="py-2.5 pl-3 pr-2 font-medium">{t.accounts.institution}</th>
                 <th className="py-2.5 px-2 font-medium">{t.accounts.accountName}</th>
                 <th className="py-2.5 px-2 font-medium">{t.accounts.type}</th>
-                <th className="py-2.5 px-1.5 font-medium">{t.accounts.currency}</th>
+                <th className="py-2.5 px-2 font-medium">{t.accounts.currency}</th>
                 <th className="py-2.5 px-2 font-medium text-right">{t.accounts.balance}</th>
                 <th className="py-2.5 px-2 font-medium text-right">{t.accounts.availableCash}</th>
                 <th className="py-2.5 px-2 font-medium text-right">{t.accounts.investmentValue}</th>
@@ -334,8 +349,8 @@ export const AccountsPage: React.FC = () => {
                                   ? 'text-rose-600 dark:text-rose-600 font-semibold'
                                   : acc.connectionStatus === 'Stale Data' ||
                                     acc.connectionStatus === 'Not Connected'
-                                        ? 'text-amber-600 dark:text-amber-400 font-semibold'
-                                        : 'text-slate-600 dark:text-slate-300'
+                                      ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                                      : 'text-slate-600 dark:text-slate-300'
                         }
                       >
                         {isSyncing ? t.nav.syncing : l(acc.connectionStatus)}

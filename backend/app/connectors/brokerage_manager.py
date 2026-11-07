@@ -3,6 +3,7 @@ O-Finance Brokerage Gateway Manager & Zero-Terminal Supervisor
 Manages embedded IBKR Client Portal Gateway (:5055) and Charles Schwab OAuth connectors,
 maintains a 200-line memory circular log buffer (console_logs), handles credential masking,
 and executes HITL approval-gated brokerage orders with double-entry Beancount logging.
+Also maintains in-memory approval records for desktop offline-first mode.
 """
 
 import asyncio
@@ -69,22 +70,12 @@ class LocalGatewaySimulator:
             "[IBKR Gateway Simulator] Gateway sandbox process terminated."
         )
 
-    async def tickle(self) -> bool:
-        if not self.is_running:
-            self.supervisor.log(
-                "[IBKR Gateway Simulator] Cannot tickle: Gateway is stopped."
-            )
-            return False
-        self.supervisor.log(
-            "[IBKR Gateway Simulator] GET /v1/api/tickle -> 200 OK (session active, keepalive confirmed)."
-        )
-        return True
-
 
 class BrokerageGatewaySupervisor:
     """
     Supervisor managing the local IBKR Gateway process or simulator,
     maintaining a 200-line circular log buffer for zero-terminal UI rendering.
+    Also maintains in-memory approval records for desktop offline-first mode.
     """
 
     def __init__(self, port: int = 5055) -> None:
@@ -111,6 +102,10 @@ class BrokerageGatewaySupervisor:
             "callback_url": "http://127.0.0.1:8000/api/v1/brokerage/schwab/callback",
             "account_id": "SCHW-998877",
         }
+
+        # In-memory storage for brokerage orders (for desktop offline-first mode)
+        self._pending_orders: Dict[str, Dict] = {}  # approval_id -> order payload
+        self._approved_orders: Dict[str, Dict] = {}  # approval_id -> approved order
 
         # Seed initial log
         self.log(
@@ -422,6 +417,14 @@ async def stage_brokerage_order_intent(
         },
     )
 
+    # Store in memory for desktop offline-first mode
+    brokerage_manager._pending_orders[approval_task.id] = {
+        "approval_id": approval_task.id,
+        "order_payload": order_payload,
+        "title": title,
+        "proposed_action": proposed_action,
+    }
+
     brokerage_manager.log(
         f"[HITL Order Staging] Staged draft order {approval_task.id}: {proposed_action} -> Pending Approval Inbox."
     )
@@ -548,6 +551,13 @@ async def execute_approved_brokerage_order(
     brokerage_manager.log(
         f"[Beancount Ledger] Appended double-entry trade settlement (Audit Hash: {audit_entry.verification_hash[:16]}...) to {beancount_file}."
     )
+
+    # Also store in memory for desktop offline-first mode
+    brokerage_manager._approved_orders[approval_id] = {
+        "approval_id": approval_id,
+        "order_payload": order_payload,
+        "executed_total_usd": total_amount,
+    }
 
     await session.commit()
 

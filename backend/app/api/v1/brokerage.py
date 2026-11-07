@@ -75,22 +75,27 @@ async def control_brokerage_gateway(payload: GatewayControlRequest):
     action = payload.action.lower().strip()
     if action == "start":
         res = await brokerage_manager.start_gateway()
+        res.setdefault("console_logs", brokerage_manager.get_status()["console_logs"])
         return res
     elif action == "stop":
         res = await brokerage_manager.stop_gateway()
+        res.setdefault("console_logs", brokerage_manager.get_status()["console_logs"])
         return res
     elif action == "tickle":
         res = await brokerage_manager.tickle_keepalive()
+        res.setdefault("console_logs", brokerage_manager.get_status()["console_logs"])
         return res
     elif action == "sso_auth":
         brokerage_manager.log(
             "[IBKR Gateway] SSO Login window request received. Gateway SSL active on https://127.0.0.1:5055."
         )
-        return {
+        res = {
             "status": brokerage_manager.status,
             "sso_url": "https://127.0.0.1:5055",
             "message": "IBKR Gateway SSO Auth ready.",
         }
+        res.setdefault("console_logs", brokerage_manager.get_status()["console_logs"])
+        return res
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

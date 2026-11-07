@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for Assistant Run Contract & Validation (POST /api/v1/assistant/run)
 """

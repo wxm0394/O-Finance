@@ -1,3 +1,4 @@
+from __future__ import annotations
 from httpx import AsyncClient
 """
 Tests for Phase 2.2 Pydantic AI Harness & Beancount Runtime Integration

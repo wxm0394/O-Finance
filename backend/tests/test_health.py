@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for System Health Probe (GET /healthz and GET /)
 Strictly tests:

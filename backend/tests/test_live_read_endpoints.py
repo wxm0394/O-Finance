@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Test Live Read-Only Subsystem Endpoints (/api/v1/*)
 Verifies that all read endpoints return 200 OK and match expected data structures.

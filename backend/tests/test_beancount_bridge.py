@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for Beancount Bridge & Cross-Storage Atomic Ledger Orchestration (Phase 2.2)
 Covers:

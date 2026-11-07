@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for Security Closure & Concurrency Fixes (P2.1.2.1)
 Covers:

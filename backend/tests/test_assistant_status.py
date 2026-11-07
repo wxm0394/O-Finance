@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for Assistant Status Endpoint (GET /api/v1/assistant/status)
 """

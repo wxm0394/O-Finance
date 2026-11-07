@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for Database Layer (SQLAlchemy 2.x + psycopg 3)
 Verifies:

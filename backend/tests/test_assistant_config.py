@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tests for Assistant Config Security & Key Isolation (GET /api/v1/assistant/config)
 """

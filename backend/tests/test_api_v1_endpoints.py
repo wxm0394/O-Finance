@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 O-Finance API v1 Endpoint Integration Tests
 

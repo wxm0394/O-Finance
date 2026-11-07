@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 PostgreSQL Integration Tests for O-Finance Security & Concurrency Verification.
 Only executed when OFINANCE_TEST_DATABASE_URL environment variable is set.

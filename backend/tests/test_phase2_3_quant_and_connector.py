@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 O-Finance Phase 2.3 Tests: Quantitative Backtest Engine & External Research Read-Only Connector
 Verifies DuckDB + Parquet backtest execution across 5 models, friction cost deduction,

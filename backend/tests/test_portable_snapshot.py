@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Unit and integration tests for Database Dual-Engine Portable Fallback
 and Portable Snapshot Export & Verification Endpoints.

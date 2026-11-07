@@ -649,6 +649,98 @@ export const AuditService = {
   getLogs: () => ApiClient.request('/api/v1/audit/logs', () => INITIAL_AUDIT_LOGS),
 };
 
+export const BrokerageService = {
+  getStatus: () =>
+    ApiClient.request('/api/v1/brokerage/status', () => ({
+      gateway_status: 'STOPPED',
+      port: 5055,
+      session_authenticated: false,
+      schwab_oauth_status: 'UNCONFIGURED',
+      ibkr_config: {
+        gateway_url: 'https://127.0.0.1:5055',
+        flex_token_masked: '****',
+        flex_query_id: '',
+        account_id: 'U12345678',
+      },
+      schwab_config: {
+        app_key_masked: '****',
+        app_secret_masked: '****',
+        callback_url: 'http://127.0.0.1:8000/api/v1/brokerage/schwab/callback',
+        account_id: 'SCHW-998877',
+      },
+      console_logs: [],
+    })),
+  controlGateway: (action: string) =>
+    ApiClient.request('/api/v1/brokerage/gateway/control', () => ({
+      status: 'pending',
+      message: `Gateway ${action} command sent`,
+    }), {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
+  saveConfig: (payload: { ibkr?: Record<string, string>; schwab?: Record<string, string> }) =>
+    ApiClient.request('/api/v1/brokerage/config', () => ({
+      gateway_status: 'STOPPED',
+      port: 5055,
+      session_authenticated: false,
+      schwab_oauth_status: 'CONFIGURED',
+      ibkr_config: {
+        gateway_url: 'https://127.0.0.1:5055',
+        flex_token_masked: 'flx-...1234',
+        flex_query_id: '123456',
+        account_id: 'U12345678',
+      },
+      schwab_config: {
+        app_key_masked: 'schw-...5678',
+        app_secret_masked: '****',
+        callback_url: 'http://127.0.0.1:8000/api/v1/brokerage/schwab/callback',
+        account_id: 'SCHW-998877',
+      },
+      console_logs: ['Config saved.'],
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getAuthUrl: () =>
+    ApiClient.request('/api/v1/brokerage/schwab/auth-url', () => ({
+      auth_url: 'https://auth.schwab.com/v1/oauth/authorize?response_type=code&client_id=DEMO_SCHWAB_APP_KEY&redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Fapi%2Fv1%2Fbrokerage%2Fschwab%2Fcallback',
+    })),
+  stageOrder: (payload: {
+    broker: string;
+    account_id: string;
+    symbol: string;
+    side: string;
+    quantity: number;
+    order_type?: string;
+    limit_price?: number;
+    dry_run?: boolean;
+  }) =>
+    ApiClient.request('/api/v1/brokerage/orders/stage', () => ({
+      status: 'PENDING',
+      approval_id: `appr-${Date.now().toString().slice(-6)}`,
+      task_mode: 'portfolio_analysis',
+      action: 'EXECUTE_BROKERAGE_ORDER',
+      target: `brokerage:${payload.broker}:${payload.symbol}`,
+      order_payload: payload,
+      message: 'Order intent draft staged to Approval Inbox.',
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  executeApprovedOrder: (payload: { approval_id: string; order_payload: Record<string, any> }) =>
+    ApiClient.request('/api/v1/brokerage/orders/execute-approved', () => ({
+      status: 'EXECUTED',
+      approval_id: payload.approval_id,
+      audit_id: `aud-${Date.now().toString().slice(-6)}`,
+      audit_hash: 'a1b2c3d4e5f6',
+      executed_trade: payload.order_payload,
+      beancount_file: 'ledger/main.beancount',
+    }), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
+
 export const SyncService = {
   triggerSimulatedSync: (targetInstitution?: string) =>
     ApiClient.request('/api/v1/sync/trigger', () => ({

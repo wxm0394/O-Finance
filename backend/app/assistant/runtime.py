@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.core.security import OperationPermission, SecurityGuard
 from app.schemas.assistant import AssistantTaskMode, ToolStepDto, VALID_TASK_MODES
-from app.ledger.beancount_bridge import BeancountBridge
+from app.ledger.beancount_bridge import BeancountBridgeScaffold as BeancountBridge
 
 
 @dataclass

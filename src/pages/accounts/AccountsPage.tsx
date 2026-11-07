@@ -3,7 +3,7 @@ import { useOFinance } from '../../app/providers/OFinanceContext';
 import { useI18n } from '../../i18n';
 import { ConnectorConfig } from '../../types';
 import { convertCurrency, formatCurrency } from '../../utils/finance';
-import { RefreshCw, Link2, Unlink, ShieldAlert, CheckCircle2, X, Lock } from 'lucide-react';
+import { RefreshCw, Link2, Unlink, ShieldAlert, CheckCircle2, X, Lock, Menu, Settings, Clipboard, AlertCircle, Loader2 } from 'lucide-react';
 
 export const AccountsPage: React.FC = () => {
   const { t, l } = useI18n();
@@ -25,17 +25,183 @@ export const AccountsPage: React.FC = () => {
   const [authModalConnector, setAuthModalConnector] = useState<ConnectorConfig | null>(null);
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAuthModalConnector(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   const filteredAccounts = accounts.filter(
     (a) => regionFilter === 'ALL' || a.region === regionFilter
   );
+
+  const [brokerageStatus, setBrokerageStatus] = useState<{
+    gateway_status: string;
+    port: number;
+    session_authenticated: boolean;
+    schwab_oauth_status: string;
+    ibkr_config: {
+      gateway_url: string;
+      flex_token_masked: string;
+      flex_query_id: string;
+      account_id: string;
+    };
+    schwab_config: {
+      app_key_masked: string;
+      app_secret_masked: string;
+      callback_url: string;
+      account_id: string;
+    };
+    console_logs: string[];
+  }>({
+    gateway_status: 'STOPPED',
+    port: 5055,
+    session_authenticated: false,
+    schwab_oauth_status: 'UNCONFIGURED',
+    ibkr_config: {
+      gateway_url: 'https://127.0.0.1:5055',
+      flex_token_masked: '****',
+      flex_query_id: '',
+      account_id: 'U12345678',
+    },
+    schwab_config: {
+      app_key_masked: '****',
+      app_secret_masked: '****',
+      callback_url: 'http://127.0.0.1:8000/api/v1/brokerage/schwab/callback',
+      account_id: 'SCHW-998877',
+    },
+    console_logs: [],
+  });
+
+  const [stagingOrder, setStagingOrder] = useState<{
+    broker: string;
+    account_id: string;
+    symbol: string;
+    side: string;
+    quantity: number;
+    order_type?: string;
+    limit_price?: number;
+    dry_run?: boolean;
+  }>({
+    broker: 'IBKR',
+    account_id: '',
+    symbol: '',
+    side: 'BUY',
+    quantity: 1,
+    order_type: 'MARKET',
+    limit_price: undefined,
+    dry_run: true,
+  });
+
+  const [stagingSuccess, setStagingSuccess] = useState(false);
+  const [stagingError, setStagingError] = useState<string | null>(null);
+
+  // Initialize brokerage status from service
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const status = await (await import('../../services')).BrokerageService.getStatus();
+        setBrokerageStatus({
+          gateway_status: status.gateway_status || 'STOPPED',
+          port: status.port || 5055,
+          session_authenticated: status.session_authenticated || false,
+          schwab_oauth_status: status.schwab_oauth_status || 'UNCONFIGURED',
+          ibkr_config: status.ibkr_config || {
+            gateway_url: 'https://127.0.0.1:5055',
+            flex_token_masked: '****',
+            flex_query_id: '',
+            account_id: 'U12345678',
+          },
+          schwab_config: status.schwab_config || {
+            app_key_masked: '****',
+            app_secret_masked: '****',
+            callback_url: 'http://127.0.0.1:8000/api/v1/brokerage/schwab/callback',
+            account_id: 'SCHW-998877',
+          },
+          console_logs: status.console_logs || [],
+        });
+      } catch (e) {
+        console.error('Failed to fetch brokerage status:', e);
+      }
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle gateway control
+  const handleGatewayControl = async (action: string) => {
+    try {
+      await (await import('../../services')).BrokerageService.controlGateway(action);
+      // Refresh status after control action
+      const status = await (await import('../../services')).BrokerageService.getStatus();
+      setBrokerageStatus({
+        gateway_status: status.gateway_status || 'STOPPED',
+        port: status.port || 5055,
+        session_authenticated: status.session_authenticated || false,
+        schwab_oauth_status: status.schwab_oauth_status || 'UNCONFIGURED',
+        ibkr_config: status.ibkr_config || {
+          gateway_url: 'https://127.0.0.1:5055',
+          flex_token_masked: '****',
+          flex_query_id: '',
+          account_id: 'U12345678',
+        },
+        schwab_config: status.schwab_config || {
+          app_key_masked: '****',
+          app_secret_masked: '****',
+          callback_url: 'http://127.0.0.1:8000/api/v1/brokerage/schwab/callback',
+          account_id: 'SCHW-998877',
+        },
+        console_logs: status.console_logs || [],
+      });
+    } catch (e) {
+      setStagingError('Failed to execute gateway control command');
+    }
+  };
+
+  // Handle Schwab OAuth auth URL
+  const handleSchwabAuthUrl = async () => {
+    try {
+      const result = await (await import('../../services')).BrokerageService.getAuthUrl();
+      // Open auth URL in new tab
+      window.open(result.auth_url || '', '_blank');
+    } catch (e) {
+      setStagingError('Failed to generate Schwab auth URL');
+    }
+  };
+
+  // Handle staging order
+  const handleStageOrder = async () => {
+    setStagingError(null);
+    try {
+      await (await import('../../services')).BrokerageService.stageOrder({
+        broker: stagingOrder.broker,
+        account_id: stagingOrder.account_id,
+        symbol: stagingOrder.symbol,
+        side: stagingOrder.side,
+        quantity: stagingOrder.quantity,
+        order_type: stagingOrder.order_type,
+        limit_price: stagingOrder.limit_price,
+        dry_run: stagingOrder.dry_run,
+      });
+      setStagingSuccess(true);
+      // Reset staging after short delay
+      setTimeout(() => setStagingSuccess(false), 3000);
+    } catch (e) {
+      setStagingError('Failed to stage brokerage order intent');
+    }
+  };
+
+  // Handle executing approved order (from approval inbox)
+  const handleExecuteApprovedOrder = async (payload: { approval_id: string; order_payload: Record<string, any> }) => {
+    try {
+      await (await import('../../services')).BrokerageService.executeApprovedOrder(payload);
+    } catch (e) {
+      setStagingError('Failed to execute approved order');
+    }
+  };
+
+  // Effect to show success/error toast
+  useEffect(() => {
+    if (stagingSuccess) {
+      // Could show a toast - for now just log
+      setStagingSuccess(false);
+    }
+  }, [stagingSuccess]);
 
   return (
     <div className="space-y-6">
@@ -78,14 +244,6 @@ export const AccountsPage: React.FC = () => {
             <span>{isSyncing ? 'Simulating Sync...' : 'Sync All Accounts (Simulated)'}</span>
           </button>
         </div>
-      </div>
-
-      {/* Explicit Simulated Sync Notice */}
-      <div className="p-3 rounded bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-mono flex flex-wrap items-center justify-between gap-2">
-        <span>
-          Simulated Sync — No Real Financial Institution Connected. All balances and account identifiers below are fictional DEMO records.
-        </span>
-        <span>Read-Only Policy Enforced</span>
       </div>
 
       {/* 6.1 Accounts Table */}
@@ -131,7 +289,7 @@ export const AccountsPage: React.FC = () => {
                       {l(acc.institution.replace(' (Simulated)', ''))}
                     </td>
                     <td className="py-2.5 px-2 text-slate-700 dark:text-slate-300 max-w-[185px]">
-                      <div className="truncate font-medium" title={acc.accountName}>{l(acc.accountName)}</div>
+                      <div className="truncate font-medium">{l(acc.accountName)}</div>
                       <div className="text-[10px] font-mono text-slate-400">
                         {acc.accountNumberMasked} · {acc.region}
                       </div>
@@ -139,7 +297,7 @@ export const AccountsPage: React.FC = () => {
                     <td className="py-2.5 px-2 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
                       {l(acc.accountType)}
                     </td>
-                    <td className="py-2.5 px-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    <td className="py-2.5 px-1.5 font-mono font-semibold text-slate-800 dark:text-white">
                       {acc.currency}
                     </td>
                     <td className="py-2.5 px-2 font-mono text-right tabular-nums whitespace-nowrap">
@@ -167,14 +325,14 @@ export const AccountsPage: React.FC = () => {
                           isSyncing
                             ? 'text-blue-600 dark:text-blue-400 font-semibold'
                             : acc.connectionStatus === 'Connected (Simulated)'
-                            ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-                            : acc.connectionStatus === 'Authorization Required' ||
-                              acc.connectionStatus === 'Sync Failed'
-                            ? 'text-rose-600 dark:text-rose-400 font-semibold'
-                            : acc.connectionStatus === 'Stale Data' ||
-                              acc.connectionStatus === 'Not Connected'
-                            ? 'text-amber-600 dark:text-amber-400 font-semibold'
-                            : 'text-slate-600 dark:text-slate-300'
+                              ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                              : acc.connectionStatus === 'Authorization Required' ||
+                                acc.connectionStatus === 'Sync Failed'
+                                  ? 'text-rose-600 dark:text-rose-600 font-semibold'
+                                  : acc.connectionStatus === 'Stale Data' ||
+                                    acc.connectionStatus === 'Not Connected'
+                                        ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                                        : 'text-slate-600 dark:text-slate-300'
                         }
                       >
                         {isSyncing ? t.nav.syncing : l(acc.connectionStatus)}
@@ -183,7 +341,7 @@ export const AccountsPage: React.FC = () => {
                     <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {l(acc.dataFreshness)}
                     </td>
-                    <td className="sticky right-0 z-10 bg-white dark:bg-[#0F1420] border-l border-slate-100 dark:border-slate-800/80 py-2.5 px-3 text-right whitespace-nowrap shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
+                    <td className="py-2.5 px-2 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => triggerSimulatedSync(acc.institution)}
@@ -200,104 +358,258 @@ export const AccountsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 6.2 Institution Connectors Grid */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Institution Connector Architecture (Default: Not Connected / Demo Only)
-            </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Planned read-only API adapters for local FastAPI deployment. Never enter real bank passwords in Demo Mode.
-            </p>
+      {/* 6.2 Embedded Brokerage Gateway & Order Staging Console */}
+      <div className="rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+            Embedded Brokerage Gateway & Order Staging
+          </h2>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Port:</span>
+            <span className="font-mono text-slate-400 dark:text-slate-200">{brokerageStatus.port}</span>
           </div>
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-            Future roadmap: Crypto Exchanges, On-Chain Wallets, Physical Cash Vaults
-          </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {connectors.map((conn) => {
-            const isSimConnected = conn.connectionStatus === 'Simulated Connected';
-            return (
-              <div
-                key={conn.id}
-                className="p-4 rounded bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-4"
+        <div className="px-4 py-4 space-y-4">
+          {/* Gateway Control Panel */}
+          <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded p-4">
+            <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">Gateway Control</h3>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleGatewayControl('start')}
+                disabled={brokerageStatus.gateway_status === 'RUNNING'}
+                className="flex-1 py-1.5 px-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5"
+                aria-label="Start Brokerage Gateway"
               >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {conn.institution}
-                      </h3>
-                      <div className="text-[11px] font-mono text-blue-600 dark:text-blue-400">
-                        {conn.plannedConnector}
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 shrink-0">
-                      {conn.connectionStatus}
-                    </span>
-                  </div>
+                <Menu className="w-3.5 h-3.5" /> Start Gateway
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGatewayControl('stop')}
+                disabled={brokerageStatus.gateway_status === 'STOPPED'}
+                className="flex-1 py-1.5 px-2 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium flex items-center gap-1.5"
+                aria-label="Stop Brokerage Gateway"
+              >
+                <Unlink className="w-3.5 h-3.5" /> Stop Gateway
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGatewayControl('restart')}
+                disabled={brokerageStatus.gateway_status === 'STOPPED'}
+                className="flex-1 py-1.5 px-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5"
+                aria-label="Restart Brokerage Gateway"
+              >
+                <Settings className="w-3.5 h-3.5" /> Restart Gateway
+              </button>
+            </div>
+          </div>
 
-                  <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1 pt-1">
-                    <div>
-                      <strong className="text-slate-700 dark:text-slate-300">Supported Data:</strong>{' '}
-                      {conn.supportedData.join(' · ')}
-                    </div>
-                    <div>
-                      <strong className="text-slate-700 dark:text-slate-300">Auth Method:</strong>{' '}
-                      {conn.authMethod}
-                    </div>
-                    <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                      Scope: {conn.permissionsScope} · Freq: {conn.syncFrequency}
-                    </div>
-                    <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                      Last Sync: {conn.lastSyncTime} · Config: {conn.configStatus}
-                    </div>
-                  </div>
+          {/* Schwab OAuth Login */}
+          <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded p-4">
+            <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">Schwab OAuth</h3>
+            <div className="space-y-2">
+              {brokerageStatus.schwab_oauth_status === 'UNCONFIGURED' ? (
+                <button
+                  type="button"
+                  onClick={() => handleSchwabAuthUrl()}
+                  className="w-full py-1.5 px-2 rounded bg-slate-900 dark:bg-blue-600 text-white text-xs font-medium hover:opacity-90 flex items-center justify-center gap-1.5"
+                  aria-label="Initiate Schwab OAuth flow"
+                >
+                  <Link2 className="w-3.5 h-3.5" /> Initiate Schwab OAuth
+                </button>
+              ) : brokerageStatus.schwab_oauth_status === 'AUTHENTICATED' ? (
+                <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 dark:text-emerald-300 text-xs font-mono">
+                  <span className="font-medium">Connected:</span> {brokerageStatus.schwab_config.account_id}
                 </div>
+              ) : (
+                <div className="p-2 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 dark:text-rose-300 text-xs font-mono">
+                  <span className="font-medium">Auth Required:</span> {brokerageStatus.schwab_oauth_status}
+                </div>
+              )}
+            </div>
+          </div>
 
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  {!isSimConnected ? (
-                    <button
-                      type="button"
-                      onClick={() => setAuthModalConnector(conn)}
-                      className="flex-1 py-1.5 px-2.5 rounded bg-slate-900 dark:bg-blue-600 text-white text-xs font-medium hover:opacity-90 flex items-center justify-center gap-1.5"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                      <span>Authorize (Sim)</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => toggleConnectorState(conn.id)}
-                      className="flex-1 py-1.5 px-2.5 rounded bg-rose-600/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-medium hover:bg-rose-600/20 flex items-center justify-center gap-1.5"
-                    >
-                      <Unlink className="w-3.5 h-3.5" />
-                      <span>Cycle State (Sim)</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => toggleConnectorState(conn.id)}
-                    title="Cycle simulated connector state (Connected / Not Connected / Auth Required / Sync Failed / Stale)"
-                    className="py-1.5 px-2.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-mono"
-                  >
-                    State
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => triggerSimulatedSync(conn.institution)}
-                    className="py-1.5 px-2.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-mono"
-                  >
-                    Sync Now
-                  </button>
+          {/* IBKR Config Status */}
+          <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded p-4">
+            <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">IBKR Configuration</h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-slate-500 dark:text-slate-400 block">Gateway URL</span>
+                <div className="mt-1 font-mono text-slate-300 dark:text-slate-500 overflow-x-auto whitespace-nowrap">
+                  {brokerageStatus.ibkr_config.gateway_url}
                 </div>
               </div>
-            );
-          })}
+              <div>
+                <span className="text-slate-500 dark:text-slate-400 block">Account ID</span>
+                <div className="mt-1 font-mono text-slate-300 dark:text-slate-500 overflow-x-auto whitespace-nowrap">
+                  {brokerageStatus.ibkr_config.account_id}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Embedded Monospace Terminal - Real-time Circular Logs */}
+          <div className="bg-slate-900 dark:bg-slate-900 rounded p-4 max-h-[200px] overflow-y-auto">
+            <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2">Gateway Console Logs (circular buffer: 200 lines)</h3>
+            <div className="font-mono text-[10px] text-slate-400 dark:text-slate-500 whitespace-pre-wrap overflow-auto">
+              {brokerageStatus.console_logs.map((log, idx) => (
+                <div key={idx} className="mb-0.5 text-slate-400 dark:text-slate-500">
+                  {log}
+                </div>
+              ))}
+              {brokerageStatus.console_logs.length === 0 && (
+                <div className="italic text-slate-500 dark:text-slate-400">
+                  No logs yet. Start the gateway to see real-time logs.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* HITL Order Intent Staging Form */}
+          <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded p-4">
+            <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">Stage Brokerage Order Intent</h3>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3">
+              Step A: Stage order intent to Approval Inbox (portfolio_analysis mode, EXECUTE_BROKERAGE_ORDER action). Creates APR-* task.
+            </p>
+            <form
+              className="space-y-3"
+              onSubmit={e => {
+                e.preventDefault();
+                handleStageOrder();
+              }}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Broker</label>
+                  <select
+                    value={stagingOrder.broker}
+                    onChange={(e) => setStagingOrder({ ...stagingOrder, broker: e.target.value })}
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                  >
+                    <option value="IBKR">IBKR</option>
+                    <option value="SCHWAB">Charles Schwab</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Account ID</label>
+                  <input
+                    type="text"
+                    value={stagingOrder.account_id}
+                    onChange={(e) =>
+                      setStagingOrder({ ...stagingOrder, account_id: e.target.value })
+                    }
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                    placeholder="e.g. U12345678"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Symbol</label>
+                  <input
+                    type="text"
+                    value={stagingOrder.symbol}
+                    onChange={(e) =>
+                      setStagingOrder({ ...stagingOrder, symbol: e.target.value })
+                    }
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                    placeholder="e.g. AAPL"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Side</label>
+                  <select
+                    value={stagingOrder.side}
+                    onChange={(e) =>
+                      setStagingOrder({ ...stagingOrder, side: e.target.value })
+                    }
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                  >
+                    <option value="BUY">BUY</option>
+                    <option value="SELL">SELL</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    value={stagingOrder.quantity}
+                    onChange={(e) =>
+                      setStagingOrder({ ...stagingOrder, quantity: Number(e.target.value) })
+                    }
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Order Type</label>
+                  <select
+                    value={stagingOrder.order_type}
+                    onChange={(e) =>
+                      setStagingOrder({ ...stagingOrder, order_type: e.target.value })
+                    }
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                  >
+                    <option value="MARKET">MARKET</option>
+                    <option value="LIMIT">LIMIT</option>
+                    <option value="STOP">STOP</option>
+                  </select>
+                </div>
+              </div>
+              {stagingOrder.order_type === 'LIMIT' || stagingOrder.order_type === 'STOP' ? (
+                <div>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Limit Price (optional)</label>
+                  <input
+                    type="number"
+                    value={stagingOrder.limit_price ?? ''}
+                    onChange={(e) =>
+                      setStagingOrder({
+                        ...stagingOrder,
+                        limit_price: stagingOrder.order_type === 'LIMIT'
+                          ? Number(e.target.value)
+                          : stagingOrder.limit_price,
+                      })
+                    }
+                    className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                    placeholder="e.g. 195.50"
+                  />
+                </div>
+              ) : (
+                null
+              )}
+              <div>
+                <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Dry Run</label>
+                <select
+                  value={String(stagingOrder.dry_run ?? true)}
+                  onChange={(e) =>
+                    setStagingOrder({ ...stagingOrder, dry_run: e.target.value === 'true' })
+                  }
+                  className="w-full py-1 px-2 rounded bg-slate-900 dark:bg-slate-800 text-slate-100 dark:text-slate-200"
+                >
+                  <option value="true">Yes (simulation only)</option>
+                  <option value="false">No (real execution if approved)</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-1.5 px-3 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5"
+                  disabled={!stagingOrder.account_id || !stagingOrder.symbol}
+                >
+                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                  {stagingOrder.broker === 'IBKR' && brokerageStatus.gateway_status !== 'RUNNING'
+                    ? 'Start gateway first'
+                    : 'Stage Order Intent'
+                  }
+                </button>
+                {stagingError && (
+                  <span className="text-rose-400 text-xs">{stagingError}</span>
+                )}
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 

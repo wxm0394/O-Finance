@@ -232,6 +232,17 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // Zero-Terminal Supervisor: Allow self-signed certificates ONLY for 127.0.0.1 / localhost
+  // when opening IBKR SSO login window (https://127.0.0.1:5055). Strictly deny for any external host.
+  app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if (isLocalhostUrl(url)) {
+      event.preventDefault();
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
   loadAppContent();
 }
 
